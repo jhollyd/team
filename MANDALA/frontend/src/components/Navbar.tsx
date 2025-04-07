@@ -1,11 +1,14 @@
 import { useState, useEffect, useRef } from 'react';
 import { Menu, X, ShoppingCart, CircleUserRound } from 'lucide-react';
+import { useLocation } from 'react-router-dom';
 
 const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
   const [isProfileClicked, setIsProfileClicked] = useState(false)
   const dropdownRef = useRef<HTMLDivElement | null>(null);
+  const location = useLocation();
+  const isGalleryPage = location.pathname === '/gallery';
 
   useEffect(() => {
     const handleScroll = () => {
@@ -31,7 +34,7 @@ const Navbar = () => {
 
   return (
     <nav className={`fixed w-full z-50 transition-all duration-300 ${
-      isScrolled ? 'bg-white shadow-md' : 'bg-transparent'
+      isScrolled ? 'bg-white shadow-md' : isGalleryPage ? 'bg-gray-900' : 'bg-transparent'
     }`}>
       <div className="max-w-8xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between h-16 items-center">
