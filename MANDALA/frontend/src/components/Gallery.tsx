@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import ProductCard from "./ProductCard"
 
 // Dummy product list
 const products = [
@@ -47,7 +48,7 @@ const Gallery = () => {
   return (
     <div className="py-20 bg-white min-h-screen">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <h1 className="text-4xl font-bold text-center text-blue-200 mb-6">Gallery</h1>
+        <h1 className="text-4xl font-bold text-center text-blue-200 m-6">Gallery</h1>
         <p className="text-center text-gray-600 text-lg mb-10">
           Browse through our collection of handcrafted and digital Mandalas.
         </p>
@@ -70,22 +71,15 @@ const Gallery = () => {
         {/* Product Grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-8">
           {filtered.map((product) => (
-            <div
-              key={product.id}
-              className="border rounded-lg shadow hover:shadow-md transition overflow-hidden"
-            >
-              <img
-                src={product.image}
-                alt={product.name}
-                className="w-full h-60 object-cover"
-              />
-              <div className="p-4">
-                <h2 className="text-lg font-semibold text-gray-800">
-                  {product.name}
-                </h2>
-                <p className="text-blue-600 font-bold mt-1">${product.price.toFixed(2)}</p>
-              </div>
-            </div>
+            <ProductCard 
+              key = {product.id} 
+              id = {product.id} 
+              name = {product.name} 
+              description = "" 
+              price = {product.price} 
+              imageUrl = {product.image} 
+              popularity = {0} 
+              catergory = {product.category}/>
           ))}
         </div>
       </div>
