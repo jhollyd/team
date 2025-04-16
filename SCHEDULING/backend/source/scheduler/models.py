@@ -1,6 +1,7 @@
 from django.db import models
 from django.core.exceptions import ValidationError
 from scheduler.constants import BITS_PER_DAY
+import random
 
 
 class AdminSubmission(models.Model):
@@ -16,6 +17,19 @@ class Employee(models.Model):
     employee_id = models.CharField(max_length=100, primary_key=True)
     availability = models.JSONField()  # List of 7 strings, each BITS_PER_DAY length
     params = models.JSONField()
+
+    def generate_block_availability(self):
+        availability = []
+        totalShift = 14 * 4 ## AV office provides support 14 hours a day
+        offSet = 4 * 7 ## Offset to ensure that each string 'starts at 7'
+        totalLength = 24 * 4 # Entire day
+        while len(availability) < totalShift:
+            block_length = random.randint(1, 5)
+            bit = random.randint(0, 1)
+            bits_to_add = min(block_length * 4, totalShift - len(availability))  # cap so we don’t overshoot
+            availability.extend([str(bit)] * bits_to_add)
+        return '*' * offSet + ''.join(availability) + '*' * (totalLength - offSet - len(availability)) ## you only get 1's in interval (28, 83) to model that you can only work between 7:00 till 21:00
+
 
     def __str__(self):
         return f"Employee {self.employee_id}"

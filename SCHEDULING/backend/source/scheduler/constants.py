@@ -10,3 +10,11 @@ DAYS_OF_WEEK = [
     "Saturday",
     "Sunday",
 ]
+
+DAYS_OF_WORKING_WEEK = [
+    "Monday",
+    "Tuesday",
+    "Wednesday",
+    "Thursday",
+    "Friday",
+]

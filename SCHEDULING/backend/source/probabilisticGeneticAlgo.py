@@ -155,7 +155,12 @@ def generateSolutions(nurses, nurseDict):
                     best_density = density
                     best_island = (start, end)
                 
-                
+            ## otherwise, if the nurse has an availability, pick an island that will be their shift 
+            ## However, when you have a max hour constraint per student that should factor into the probability of the coin flip of whether
+            ## They work on a given day - p(work on a given day) = (student_max_hours - hours_allotted_thus_far)//student_max_hours OR 0
+            ## If there is no shift s in islands where hours_allotted_thus_far + s.length < maxHours
+            ## Another implications of this is that we should iterate through the days at random - otherwise it will be that you have
+            ## higher odds to give a shift on an earlier day in the week than later days of the week
                 best_island = random.sample(islands, 1)[0]
 
             shift = ["0"] * 32
