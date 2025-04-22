@@ -11,7 +11,7 @@ const Navbar = () => {
   const { isSignedIn, user } = useUser();
   const { signOut } = useClerk();
   const location = useLocation();
-  const isGalleryPage = location.pathname === '/gallery';
+  const isHomePage = location.pathname === '/';
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -47,7 +47,7 @@ const Navbar = () => {
 
   return (
     <nav className={`fixed w-full z-50 transition-all duration-300 ${
-      isScrolled ? 'bg-white shadow-md' : isGalleryPage ? 'bg-gray-900' : 'bg-transparent'
+      isScrolled || !isHomePage ? 'bg-white shadow-md' : 'bg-transparent'
     }`}>
       <div className="max-w-8xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between h-16 items-center">
@@ -56,19 +56,19 @@ const Navbar = () => {
           <div className="hidden md:block">
             <div className="ml-10 flex items-center space-x-8 text-xl">
               <a href="#about" className={`font-bold hover:text-blue-200 transition-colors ${
-                isScrolled ? 'text-black' : 'text-white'
+                isScrolled || !isHomePage ? 'text-black' : 'text-white'
               }`}>About</a>
               <a href="#gallery" className={`font-bold hover:text-blue-200 transition-colors ${
-                isScrolled ? 'text-black' : 'text-white'
+                isScrolled || !isHomePage ? 'text-black' : 'text-white'
               }`}>Gallery</a>
               <a href="/gallery" className={`font-bold hover:text-blue-200 transition-colors ${
-                isScrolled ? 'text-black' : 'text-white'
+                isScrolled || !isHomePage ? 'text-black' : 'text-white'
               }`}>Shop</a>
               <div className="relative" ref={dropdownRef}>
                 {isSignedIn ? (
                   <>
                     <button className={`relative hover:text-blue-200 transition-colors ${
-                      isScrolled ? 'text-black' : 'text-white'}`}
+                      isScrolled || !isHomePage ? 'text-black' : 'text-white'}`}
                       onClick={() => setIsProfileClicked(!isProfileClicked)}>
                       <CircleUserRound size={30} />
                     </button>
@@ -93,14 +93,14 @@ const Navbar = () => {
                 ) : (
                   <SignInButton mode="modal">
                     <button className={`relative hover:text-blue-200 transition-colors ${
-                      isScrolled ? 'text-black' : 'text-white'}`}>
+                      isScrolled || !isHomePage ? 'text-black' : 'text-white'}`}>
                       <CircleUserRound size={30} />
                     </button>
                   </SignInButton>
                 )}
               </div>
               <a href="#cart" className={`relative hover:text-blue-200 transition-colors ${
-                isScrolled ? 'text-black' : 'text-white'
+                isScrolled || !isHomePage ? 'text-black' : 'text-white'
               }`} onClick={handleCartClick}>
                 <ShoppingCart size={30} />
                 <span className="absolute -top-2 -right-2 bg-blue-200 text-gray-800 text-xs rounded-full h-5 w-5 flex items-center justify-center">
@@ -114,7 +114,7 @@ const Navbar = () => {
             <button
               onClick={() => setIsOpen(!isOpen)}
               className={`hover:text-red-600 transition-colors ${
-                isScrolled ? 'text-black' : 'text-white'
+                isScrolled || !isHomePage ? 'text-black' : 'text-white'
               }`}
             >
               {isOpen ? <X size={24} /> : <Menu size={24} />}
