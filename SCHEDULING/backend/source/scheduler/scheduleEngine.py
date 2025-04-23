@@ -16,7 +16,7 @@ class ScheduleEngine:
                  employees: List[Employee],
                  max_man_hours: int = 200,
                  valid_work_days: List[str] = DAYS_OF_WEEK,
-                 valid_work_hours: tuple = (28, 88)): # 0 = 12 am 96 = 11:59 pm
+                 valid_work_hours: tuple = (28, 83)): # 0 = 12 am 96 = 11:59 pm, thus 28-83 represents a 14 hour window of 7-9
         """
         Initialize the scheduling engine.
 
@@ -30,6 +30,7 @@ class ScheduleEngine:
         self.max_man_hours = max_man_hours
         self.valid_work_days = valid_work_days
         self.valid_work_hours = valid_work_hours
+        self.total_emp_hour_limit_violations = 0
 
 
         """
@@ -54,6 +55,10 @@ class ScheduleEngine:
 
         while len(employee_ids) > 0:
             curr_emp_id = random.sample(list(employee_ids), 1)[0]  
+            curr_emp = next(emp for emp in self.employees if emp.employee_id == curr_emp_id) ## coresponding employee object
+            emp_max_hours = curr_emp.params.get("max_hours", 0)  # Get the max_hours for the employeee (defaults to 0 if param missing)
+           # print("max hours " + str(emp_max_hours))
+            
             employee_ids.remove(curr_emp_id)
             valid_days_set = {i for i, day in enumerate(DAYS_OF_WEEK) if day in self.valid_work_days}  #G               
 
@@ -64,20 +69,35 @@ class ScheduleEngine:
             ## For set of all work days - valid work days, produce the corresponding index in schedule
             ## and fill it with BITS_PER_DAY 0s (as this is a day they cannot work)
             ## Note that this is implicitly true because of the previous line
-
+            
+            
+            ## A variable which will track the hours alloted thus far, allows us to probabalistically 
+            ## ensure that as the hoursThusFar gets closer to max hours alloted for the student
+            ## the probability of the student getting a shift gets smaller
+            hoursThusFarForEmp = 0 
+            
             while(len(valid_days_set) > 0):
-                d = random.sample(list(valid_days_set), 1)[0]
+                # d = random.sample(list(valid_days_set), 1)[0]
+                d = self.sample_day_based_on_zero_density(curr_emp_id, valid_days_set, employeeToAvailabilityIslands)
+                if(d == None): ## Case: no days with islands left for this individual
+                    break
                 valid_days_set.remove(d) ## Remove the one you picked so it reduces
                 islands_e_d = employeeToAvailabilityIslands[curr_emp_id][d]
 
 
 
                 
-                if not islands_e_d:
+                if not islands_e_d: ## If no islands on this day, we can't assign them work here (no availability). 
                     continue
-
-                if random.randint(0,1) < 0.5: ## 50% of the time you might not work that day
+                ## Here the current scheme is a 'coin flip' (coin flip is weighed in order to prevent exceeding of max_hour_limit of emp) to decide whether or not emp works on a day
+                ## Then, if they are working a 75% chance they work a shift that is 'low density'
+                ## and a 25% chance they just work a random shift
+                numerator = (emp_max_hours - hoursThusFarForEmp) if (emp_max_hours - hoursThusFarForEmp) > 0 else 0 ## if hoursThusFar is close in magnitude to emp_max_hours, it could still pass coin flip, but on next iteration hoursThusFar will be greater than emp_max_hours, this protects this case as result will be numerator is neg
+                employeeHoursFactor = numerator/emp_max_hours
+                if random.randint(0,1) < employeeHoursFactor: #0.5: ## 50% of the time you might not work that day
                     continue
+                
+                
 
                 probPickLowDensity = random.randint(0,1) < 0.75 # some factor to say 20% of the time when available, they will not be scheduled
                 day_name = DAYS_OF_WEEK[d]
@@ -91,16 +111,23 @@ class ScheduleEngine:
                 if(probPickLowDensity):
                     chosen_island = lowest_density_island
                     
+                start, end = chosen_island ## Destructure the starting and ending indices of availability island
+
+                ## Ensure that adding in the hours from the chosen island will not tip over the employee past their max possible availability
+                if(hoursThusFarForEmp + ((end - start + 1)/4)) > emp_max_hours:
+                    continue
                 
-                # chosen_island = max(islands_e_d, key=lambda x: x[1] - x[0]) if (random.randint(0,1) > 0.99) else random.sample(islands_e_d, 1)[0]
-                # print(chosen_island)
                 
-                # Pick an island
-                start, end = chosen_island 
+                hoursThusFarForEmp = hoursThusFarForEmp + ((end - start + 1)/4) ## Since we are giving this emp this shift, add it in
                 day_bits = ['0'] * BITS_PER_DAY
                 for i in range(start, end + 1):
                     day_bits[i] = '1'
                 schedule[d] = ''.join(day_bits)
+            
+           # print("emphourfactor" + str(employeeHoursFactor) + " " + str(curr_emp_id))
+            if(hoursThusFarForEmp > emp_max_hours): ## Checking if the LIMIT for a student's # of hours (currently 20 * 60 mins) has been exceeded
+                self.total_emp_hour_limit_violations =  self.total_emp_hour_limit_violations + (hoursThusFarForEmp - emp_max_hours)
+            
             empToSchedule[curr_emp_id] = schedule
 
             ## While the set of work days is not empty pick a random day d
@@ -110,6 +137,34 @@ class ScheduleEngine:
             ## Now, produce a key value pair <employee_id, schedule> and add to empToSchedule
         
         return empToSchedule
+
+    import random
+
+    def sample_day_based_on_zero_density(self, curr_emp_id, valid_days_set, employeeToAvailabilityIslands):
+        day_scores = {}  # day -> best (min) zero density from islands
+        
+        for d in valid_days_set:
+            islands_e_d = employeeToAvailabilityIslands[curr_emp_id][d]
+            if not islands_e_d:
+                continue  # No availability, skip
+            
+            day_name = DAYS_OF_WEEK[d]
+            min_density = min(
+                self.compute_zero_density(start, end, day_name)
+                for (start, end) in islands_e_d
+            )
+            day_scores[d] = min_density
+        if not day_scores:
+            return None  # no valid day with islands
+
+        # Convert min_densities to weights (lower density = higher weight)
+        epsilon = 1e-6
+        days = list(day_scores.keys())
+        weights = [1 / (day_scores[day] + epsilon) for day in days]
+
+        # Sample based on weights
+        return random.choices(days, weights=weights, k=1)[0]
+
     
     """
     Given a bitstring representing availability for a single day,

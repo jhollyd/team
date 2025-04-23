@@ -1,6 +1,7 @@
 from django.core.management.base import BaseCommand
 from scheduler.models import Employee
-from scheduler.scheduleEngine import ScheduleEngine  # Your class
+from scheduler.scheduleEngine import ScheduleEngine  
+import random
 
 class Command(BaseCommand):
     help = 'Run the scheduling engine 10,000 times and keep the top 3 results'
@@ -11,7 +12,7 @@ class Command(BaseCommand):
             emp = Employee(
                 employee_id=f"EMP{i+1}",
                 availability=[Employee().generate_block_availability() for _ in range(7)],
-                params={"max_hours": 40, "preferential": False}
+                params={"max_hours": (40 if random.randint(0,1) < 0.8 else 20), "preferential": False}
             )
             dummy_employees.append(emp)
 
@@ -20,14 +21,18 @@ class Command(BaseCommand):
 
         top_schedules = []  # List of (cost, schedule) tuples
 
-        for iteration in range(1, 25000):
+        employeeHourLimitViolationWarning = False
+
+        for iteration in range(1, 50000):
             sE = ScheduleEngine(employees=dummy_employees)
             empIdToSched = sE.schedule()
+
+            employeeHourLimitViolationWarning = employeeHourLimitViolationWarning or (sE.total_emp_hour_limit_violations > 0)
 
             unfilled = 0
             overstaffed = 0
 
-            for i in range(28, 84):  # Only slots in (28, 83) inclusive
+            for i in range(28, 84):  # Only slots in (28, 83) inclusive - 0 represents 12:00 so 28 would be 7:00, 83 would be 21:00 or 9:00 pm
                 for day in range(7):  # Each day
                     count = sum(1 for sched in empIdToSched.values() if sched[day][i] == '1')
                     if count == 0:
@@ -35,13 +40,14 @@ class Command(BaseCommand):
                     elif count > 2:
                         overstaffed += 1
 
-            overstaffed_factor = overstaffed if overstaffed <= 5 else (overstaffed - 5) * 10
-            cost = 10 * unfilled + overstaffed_factor
+            overstaffed_factor = overstaffed * 10
+            cost = unfilled
 
             top_schedules.append((cost, empIdToSched))
-            top_schedules = sorted(top_schedules, key=lambda x: x[0])[:3]
+            top_schedules = sorted(top_schedules, key=lambda x: x[0])[:10] ## gather top 10 by cost which is # of unfilled shifts
+            ## strategy = gather top 10 by unfilled shifts, sort these by #of overstaffed - to be implemented
 
-            if iteration % 500 == 0:
+            if iteration % 10000 == 0:
                 print(f"Iteration {iteration}: cost = {cost}, unfilled = {unfilled}, overstaffed = {overstaffed}")
 
         print("\n✅ Top 3 Schedules by Cost:")
@@ -82,3 +88,7 @@ class Command(BaseCommand):
             for day, bits in zip(["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"], sched):
                 print(f"  {day}: {bits}")
             print("-" * 50)
+        
+        if(employeeHourLimitViolationWarning):
+            print("SCHEDULES ARE BEING PRODUCED THAT VIOLATE MAX EMPLOYEE HOUR CONSTRAINTS, SHOULD NOT OCCUR! PLEASE CHECK IMPLEMENTATION!")
+        
