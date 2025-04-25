@@ -1,0 +1,65 @@
+body {
+    background-image: linear-gradient(to right, rgb(12, 173, 184), rgb(26, 94, 162), rgb(153, 14, 192));
+    font-family: 'Arial', 'Georgia', 'Serif';
+    margin: 0;
+    padding: 0;
+    display: flex;
+    justify-content: center; /* Center horizontally */
+    align-items: center; /* Center vertically */
+    height: 100vh; /* Full viewport height */
+  }
+  
+  #login_Box {
+    width: 500px;
+    padding: 5%;
+    display: flex;
+    flex-direction: column;
+    background-color: white;
+    gap: 4%;
+    border-radius: 5px;
+  }
+  
+  h1 {
+    text-transform: uppercase;
+    font-weight: bold;
+    color: black;
+    margin-bottom: 20px;
+  }
+  
+  label {
+    display: block;
+    color: black;
+    margin-top: 10px;
+  }
+  
+  input {
+    width: 100%;
+    padding: 8px;
+    margin: 5px 0 15px 0;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    box-sizing: border-box;
+  }
+  
+  input::placeholder {
+    color: lightgray;
+  }
+  
+  #confirmButton {
+    width: 100%;
+    padding: 10px;
+    background-color: black;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    margin-bottom: 15px;
+  }
+  
+  .g_id_signin {
+    display: flex;
+    justify-content: center;
+    background-color: #f0f0f0;
+    padding: 5px;
+    border-radius: 4px;
+  }

@@ -20,6 +20,11 @@ export default function StudentLayout() {
               Schedule
             </NavLink>
           </li>
+          <li>
+            <NavLink to="/admin/students" className={({ isActive }) => isActive ? 'active' : ''}>
+              Admin Dashboard
+            </NavLink>
+          </li>
         </ul>
       </div>
 

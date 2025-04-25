@@ -26,6 +26,15 @@ export default function StudentSchedulePage() {
 
   const [icalFile, setIcalFile] = useState(null);
   const [uploadStatus, setUploadStatus] = useState('');
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
+  const [studentId, setStudentId] = useState('');
+
+  // Function to validate student ID
+  const validateStudentId = (value) => {
+    const numericValue = value.replace(/[^0-9]/g, '');
+    return numericValue.slice(0, 8);
+  };
 
   function handleFileChange(e) {
     const file = e.target.files[0];
@@ -118,32 +127,73 @@ export default function StudentSchedulePage() {
 
       <hr className="mt-4 mb-4" />
 
-      <div className="mt-4 mb-4">
-        <h4 className="mb-3">Upload Class Schedule (.ics)</h4>
-        <p className="text-muted mb-3">
-          Upload your iCal file to automatically add your class times to the calendar (non-editable).
-        </p>
-        <div className="d-flex align-items-center gap-2">
-          <input
-            type="file"
-            accept=".ics"
-            onChange={handleFileChange}
-            className="form-control"
-            style={{ maxWidth: '300px' }}
-          />
-          <button
-            onClick={handleUploadIcal}
-            className="btn btn-primary"
-            disabled={!icalFile}
-          >
-            Submit iCal
-          </button>
-        </div>
-        {uploadStatus && (
-          <div className="alert alert-success mt-2" role="alert">
-            {uploadStatus}
+      <div className="mt-4">
+        <h4>Student Information</h4>
+        <div className="row mb-3">
+          <div className="col-md-4">
+            <label htmlFor="firstName" className="form-label">First Name</label>
+            <input
+              type="text"
+              id="firstName"
+              className="form-control"
+              value={firstName}
+              onChange={(e) => setFirstName(e.target.value)}
+              required
+            />
           </div>
-        )}
+          <div className="col-md-4">
+            <label htmlFor="lastName" className="form-label">Last Name</label>
+            <input
+              type="text"
+              id="lastName"
+              className="form-control"
+              value={lastName}
+              onChange={(e) => setLastName(e.target.value)}
+              required
+            />
+          </div>
+          <div className="col-md-4">
+            <label htmlFor="studentId" className="form-label">Student ID</label>
+            <input
+              type="text"
+              id="studentId"
+              className="form-control"
+              value={studentId}
+              onChange={(e) => setStudentId(validateStudentId(e.target.value))}
+              maxLength={8}
+              pattern="[0-9]*"
+              inputMode="numeric"
+              required
+            />
+          </div>
+        </div>
+
+        <div className="mt-4">
+          <p className="text-muted mb-3">
+            Upload your iCal file to automatically add your class times to the calendar (non-editable).
+          </p>
+          <div className="d-flex align-items-center gap-2">
+            <input
+              type="file"
+              accept=".ics"
+              onChange={handleFileChange}
+              className="form-control"
+              style={{ maxWidth: '300px' }}
+            />
+            <button
+              onClick={handleUploadIcal}
+              className="btn btn-primary"
+              disabled={!icalFile}
+            >
+              Submit iCal
+            </button>
+          </div>
+          {uploadStatus && (
+            <div className="alert alert-success mt-2" role="alert">
+              {uploadStatus}
+            </div>
+          )}
+        </div>
       </div>
 
       <button onClick={handleSave} className="btn btn-success">
