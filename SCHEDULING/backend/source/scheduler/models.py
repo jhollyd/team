@@ -23,11 +23,12 @@ class Employee(models.Model):
         totalShift = 14 * 4 ## AV office provides support 14 hours a day
         offSet = 4 * 7 ## Offset to ensure that each string 'starts at 7'
         totalLength = 24 * 4 # Entire day
-        while len(availability) < totalShift:
+        while len(availability) < totalShift: ## Will generate a string that is at most totalShift in length and we will prefix and suffix with 0s to suggest a 14 hour work window between 7 am and 9 pm
             block_length = random.randint(1, 5)
             bit = random.randint(0, 1)
             bits_to_add = min(block_length * 4, totalShift - len(availability))  # cap so we don’t overshoot
             availability.extend([str(bit)] * bits_to_add)
+        ## Notice that this implies index 28-83 will represent 7-9 am
         return '*' * offSet + ''.join(availability) + '*' * (totalLength - offSet - len(availability)) ## you only get 1's in interval (28, 83) to model that you can only work between 7:00 till 21:00
 
 

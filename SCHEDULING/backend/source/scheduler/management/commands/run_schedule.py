@@ -88,6 +88,14 @@ class Command(BaseCommand):
             for day, bits in zip(["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"], sched):
                 print(f"  {day}: {bits}")
             print("-" * 50)
+
+        total_scheduled_shifts = 0
+        for sched in best_schedule.values():
+            for day_bits in sched:
+                total_scheduled_shifts += day_bits.count('1')
+
+        print(f"\n🔢 Total number of scheduled shifts (in hours) across all employees and days: {total_scheduled_shifts/4}")
+
         
         if(employeeHourLimitViolationWarning):
             print("SCHEDULES ARE BEING PRODUCED THAT VIOLATE MAX EMPLOYEE HOUR CONSTRAINTS, SHOULD NOT OCCUR! PLEASE CHECK IMPLEMENTATION!")
