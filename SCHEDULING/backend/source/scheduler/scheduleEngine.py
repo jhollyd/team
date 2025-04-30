@@ -31,6 +31,7 @@ class ScheduleEngine:
         self.valid_work_days = valid_work_days
         self.valid_work_hours = valid_work_hours
         self.total_emp_hour_limit_violations = 0
+        self.scheduledHoursPerEmployee = {}
 
 
         """
@@ -124,10 +125,10 @@ class ScheduleEngine:
                     day_bits[i] = '1'
                 schedule[d] = ''.join(day_bits)
             
-           # print("emphourfactor" + str(employeeHoursFactor) + " " + str(curr_emp_id))
+           # This should never happen, its really just a flag which triggers a print in the algo-run to warn that it has happened
             if(hoursThusFarForEmp > emp_max_hours): ## Checking if the LIMIT for a student's # of hours (currently 20 * 60 mins) has been exceeded
                 self.total_emp_hour_limit_violations =  self.total_emp_hour_limit_violations + (hoursThusFarForEmp - emp_max_hours)
-            
+            self.scheduledHoursPerEmployee[curr_emp_id] = hoursThusFarForEmp
             empToSchedule[curr_emp_id] = schedule
 
             ## While the set of work days is not empty pick a random day d
