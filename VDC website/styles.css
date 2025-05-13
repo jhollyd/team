@@ -1502,3 +1502,6 @@ transition: all 0.5s ease-in-out;
   margin-bottom: 0.4rem;
   list-style-type: disc;
 }
+.cta {
+  margin-bottom: 2rem; /* Adjust spacing as needed */
+}
