@@ -1450,3 +1450,55 @@ transition: all 0.5s ease-in-out;
 .apply-hero button:hover {
  background-color: #001f4d;
 }
+
+.accordion-checkbox {
+  display: none;
+}
+
+.accordion {
+  background-color: #132245;
+  color: #FFFFF0;
+  padding: 10px;
+  text-align: left;
+  border: none;
+  outline: none;
+  font-size: 18px;
+  width: 100%;
+  cursor: pointer;
+  margin-bottom: 6px; 
+  display: block;
+}
+
+.accordion:after {
+  content: '+';
+  font-size: 20px;
+  float: right;
+}
+
+.accordion-checkbox:checked + .accordion:after {
+  content: '-';
+}
+
+.panel {
+  padding: 0 18px;
+  display: none;
+  background-color: #FEDE42;
+  margin-bottom: 10px;
+}
+
+.accordion-checkbox:checked + .accordion + .panel {
+  display: block;
+}
+
+.cta ul {
+  padding-left: 1.5rem; /* adds proper indentation for bullets */
+  margin-top: 0.5rem;
+  margin-bottom: 1rem;
+  font-size: 1rem; /* makes text size normal */
+  line-height: 1.5;
+}
+
+.cta ul li {
+  margin-bottom: 0.4rem;
+  list-style-type: disc;
+}
