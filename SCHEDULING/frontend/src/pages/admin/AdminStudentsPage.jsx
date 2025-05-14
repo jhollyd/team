@@ -47,25 +47,8 @@ export default function AdminStudentsPage() {
 
   const patch = (id, obj) =>
     setStudents((prev) =>
-      prev.map((s) => (s.id === id ? { ...s, ...obj } : s))
+      prev.map((s) => (s.id === id ? { ...s, ...obj, synced: false } : s))
     );
-
-  const fireUpdateAPI = (stu) => {
-    fetch(`${API}/update-parameters/`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        updates: [
-          {
-            student_id: stu.studentId,
-            max_hours: stu.maxHours,
-            f1_status: stu.isInternational,
-            priority: stu.priority,
-          },
-        ],
-      }),
-    }).catch(() => console.log("update-parameters offline"));
-  };
 
   const handleDelete = async (id) => {
     try {
@@ -92,11 +75,11 @@ export default function AdminStudentsPage() {
 
   const submitNew = async () => {
     try {
-      // Filter out any students that haven't been synced yet
+      // Get all students that need updating (either new or modified)
       const studentsToSubmit = students.filter(s => !s.synced);
       
       if (studentsToSubmit.length === 0) {
-        setStatusMsg("No new students to update");
+        setStatusMsg("No changes to update");
         return;
       }
 
@@ -114,7 +97,7 @@ export default function AdminStudentsPage() {
 
       console.log('Sending request with body:', JSON.stringify(body, null, 2));
 
-      // First, update the database
+      // Update the database
       const updateResponse = await fetch(`${API}/admin-form/`, {
         method: "POST",
         headers: { 
@@ -233,14 +216,11 @@ export default function AdminStudentsPage() {
                   <select
                     value={s.isInternational ? "Yes" : "No"}
                     onChange={(e) => {
-                      if (!s.synced) return;
                       const intl = e.target.value === "Yes";
                       const capped = Math.min(intl ? 20 : 40, s.maxHours || 0);
                       const row = { ...s, isInternational: intl, maxHours: capped };
                       patch(s.id, row);
-                      fireUpdateAPI(row);
                     }}
-                    disabled={!s.synced}
                   >
                     <option>No</option>
                     <option>Yes</option>
@@ -256,12 +236,9 @@ export default function AdminStudentsPage() {
                     max={s.isInternational ? 20 : 40}
                     value={s.maxHours}
                     onChange={(e) => {
-                      if (!s.synced) return;
                       const row = { ...s, maxHours: Number(e.target.value) };
                       patch(s.id, row);
-                      fireUpdateAPI(row);
                     }}
-                    disabled={!s.synced}
                   />
                 </td>
 
@@ -274,12 +251,9 @@ export default function AdminStudentsPage() {
                     max="5"    
                     value={s.priority}
                     onChange={(e) => {
-                      if (!s.synced) return;
                       const row = { ...s, priority: Number(e.target.value) };
                       patch(s.id, row);
-                      fireUpdateAPI(row);
                     }}
-                    disabled={!s.synced}
                   />
                 </td>
 
