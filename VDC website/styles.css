@@ -1533,3 +1533,125 @@ transition: all 0.5s ease-in-out;
 .cta {
   margin-bottom: 2rem; /* Adjust spacing as needed */
 }
+
+
+
+/* AI Chatbot */
+
+/* Floating Chatbot Button */
+#chatbot-icon {
+  position: fixed;
+  bottom: 30px;
+  right: 30px;
+  background-color: #132245;
+  color: #FEDE42;
+  width: 60px;
+  height: 60px;
+  font-size: 2.5rem;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+  cursor: pointer;
+  z-index: 999;
+}
+
+#chatbot-popup {
+  position: fixed;
+  bottom: 100px;
+  right: 30px;
+  width: 380px;
+  height: 500px;
+  background: #ffffff;
+  border: 2px solid #132245;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+  display: none;
+  flex-direction: column;
+  overflow: hidden;
+  z-index: 1000;
+  font-family: 'Poppins', sans-serif;
+}
+
+.chat-header {
+  background-color: #132245;
+  color: #FEDE42;
+  padding: 12px 16px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-weight: bold;
+  font-size: 1.2rem;
+}
+
+.chat-header .close-btn {
+  background: none;
+  border: none;
+  color: #FEDE42;
+  font-size: 1.4rem;
+  cursor: pointer;
+}
+
+.chat-messages {
+  flex: 1;
+  padding: 15px;
+  overflow-y: auto;
+  background-color: #f9f9f9;
+}
+
+.message {
+  margin: 10px 0;
+  padding: 10px 15px;
+  border-radius: 20px;
+  max-width: 75%;
+  word-wrap: break-word;
+  font-size: 0.95rem;
+}
+
+.message.user {
+  background-color: #132245;
+  color: #FEDE42;
+  margin-left: auto;
+  text-align: right;
+}
+
+.message.bot {
+  background-color: #E9EDC8;
+  color: #132245;
+  margin-right: auto;
+  text-align: left;
+}
+
+.chat-input-area {
+  display: flex;
+  padding: 10px;
+  border-top: 1px solid #ddd;
+  background-color: #ffffff;
+}
+
+.chat-input-area input {
+  flex: 1;
+  padding: 10px;
+  border-radius: 20px;
+  border: 1px solid #ccc;
+  font-size: 1rem;
+}
+
+.chat-input-area button {
+  margin-left: 10px;
+  padding: 10px 15px;
+  background-color: #132245;
+  color: #FEDE42;
+  border: none;
+  border-radius: 20px;
+  cursor: pointer;
+  font-weight: bold;
+}
+
+
+
+.floating-button {
+  display: none !important;
+}
+

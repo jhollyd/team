@@ -17,6 +17,12 @@ def admin_form_submission(request):
             employee_id= key.get('student_id'),
             student_id= key.get('student_id'),
             email=key.get('student_email')
+            # Parameter values initialized to the following:
+            params={
+                "max_hours": 30,
+                "f1_status": false,
+                "priority": 2
+            }
         )
     return JsonResponse({'status': 'admin form received'})
 
@@ -98,11 +104,32 @@ def update_parameters(request):
         exisitng_params = Employee.objects.get(student_id=student_id).params
         # update mappings if provided in JSON request body
         if 'max_hours' in new_params:
+            # Save in database
             exisitng_params['max_hours'] = new_params['max_hours']
+        else:
+            # Initialze 'max_hours' to 30 if not already done
+            exisitng_params['max_hours'] = 30
         if 'f1_status' in new_params:
-            exisitng_params['f1_status'] = new_params['f1_status']
+            new_f1_status = new_params['f1_status']
+
+            # Update to limit 'max_hours' to 30 if 'f1status' is true
+            if new_f1_status:
+                exisitng_params['max_hours'] = 20
+
+            # Save in database
+            exisitng_params['f1_status'] = new_f1_status
         if 'priority' in new_params:
-            exisitng_params['priority'] = new_params['priority']
+            new_priority = new_params['priority']
+
+            # Modify "max hours" based on priority
+            if new_priority == 0:
+                exisitng_params['max_hours'] = exisitng_params['max_hours'] * 0.5
+            elif new_priority == 1:
+                exisitng_params['max_hours'] = exisitng_params['max_hours'] * 0.75
+
+            # Save in database
+            exisitng_params['priority'] = new_priority
+
         exisitng_params.save()
         return JsonResponse({'status': 'Parameters updated'}, status=204)
     except Employee.DoesNotExist:
