@@ -352,30 +352,67 @@
 
 
    // this is the beginning of the AI area
-   <section class="chat-section">
-       <h2>Chat with DeepSeek AI</h2>
-       <input type="text" id="userInput" placeholder="Ask DeepSeek a question..." style="padding:10px; width:300px;">
-       <button onclick="askDeepSeek()" style="padding:10px;">Ask</button>
-       <div id="response" style="margin-top:20px; padding:10px; border:1px solid #ccc;"></div>
-   </section>
+<!-- Floating Chat Icon -->
+<div id="chatbot-icon" onclick="toggleChat(true)">
+    <i class="fas fa-comments"></i>
+  </div>
   
-   <script>
-       async function askDeepSeek() {
-           const userInput = document.getElementById("userInput").value;
-           const responseDiv = document.getElementById("response");
+  <!-- Chat Popup -->
+  <div id="chatbot-popup" style="display: none;">
+    <div class="chat-header">
+      <span>Chat with DeepSeek AI</span>
+      <button class="close-btn" onclick="toggleChat(false)">×</button>
+    </div>
+    <div class="chat-messages" id="chat-messages"></div>
+    <div class="chat-input-area">
+      <input type="text" id="userInput" placeholder="Type your message..." onkeydown="if(event.key === 'Enter') askDeepSeek()">
+      <button onclick="askDeepSeek()">Send</button>
+    </div>
+  </div>
   
-           responseDiv.innerHTML = "Thinking..."; // Show loading text
+  <script>
+    function toggleChat(show) {
+      const popup = document.getElementById("chatbot-popup");
+      popup.style.display = show ? "flex" : "none";
+    }
   
-           const res = await fetch("https://vdc-chatbot.onrender.com/chat", {
-               method: "POST",
-               headers: { "Content-Type": "application/json" },
-               body: JSON.stringify({ prompt: userInput })
-           });
+    function appendMessage(text, sender) {
+      const container = document.getElementById("chat-messages");
+      const msg = document.createElement("div");
+      msg.className = `message ${sender}`;
+      msg.textContent = text;
+      container.appendChild(msg);
+      container.scrollTop = container.scrollHeight;
+    }
   
-           const data = await res.json();
-           responseDiv.innerHTML = `<strong>Response:</strong> ${data.response || "No response from AI"}`;
-       }
-   </script>
+    async function askDeepSeek() {
+      const input = document.getElementById("userInput");
+      const prompt = input.value.trim();
+      if (!prompt) return;
+  
+      appendMessage(prompt, 'user');
+      input.value = "";
+  
+      appendMessage("Typing...", 'bot');
+  
+      try {
+        const res = await fetch("http://127.0.0.1:5000/chat", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ prompt })
+        });
+        const data = await res.json();
+        const botMsgs = document.querySelectorAll(".message.bot");
+        botMsgs[botMsgs.length - 1].textContent = data.response || "No response from AI.";
+      } catch (err) {
+        const botMsgs = document.querySelectorAll(".message.bot");
+        botMsgs[botMsgs.length - 1].textContent = "Error contacting AI.";
+      }
+    }
+  </script>
+  
+  
+  
 
 
    // end of the AI area
