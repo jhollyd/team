@@ -117,30 +117,58 @@ def get_schedules(request):
 
 @csrf_exempt
 def generate_schedule(request):
-    if request.method != 'GET':
-        return JsonResponse({'error': 'Only GET allowed'}, status=405)
-
-    from .models import Employee
-    employees = Employee.objects.exclude(schedule=None)
-
-    if not employees.exists():
-        return JsonResponse({'error': 'No students with availability submitted'}, status=404)
+    if request.method != "POST":
+        return HttpResponseBadRequest("Only POST requests are allowed.")
 
     try:
-        # Initialize the scheduling engine
-        engine = ScheduleEngine(employees=list(employees))  # must be a list
-        schedule_result = engine.schedule()  # returns dict {employee_id: [schedule_strs]}
+        body = json.loads(request.body)
+        employee_ids = body.get("employee_ids")
+        total_master_schedule_hours = body.get("total_master_schedule_hours", 120)
 
-        return JsonResponse({
-            'status': 'success',
-            'schedules': schedule_result
-        }, status=200)
+        if not employee_ids or not isinstance(employee_ids, list):
+            return HttpResponseBadRequest("employee_ids must be provided as a list.")
 
+        employees = list(Employee.objects.filter(employee_id__in=employee_ids))
+        if not employees:
+            return HttpResponseBadRequest("No matching employees found.")
+
+        top_schedules = []
+        employeeHourLimitViolationWarning = False
+
+        for _ in range(100000):
+            sE = ScheduleEngine(employees=employees, max_man_hours=total_master_schedule_hours)
+            empIdToSched = sE.schedule()
+
+            employeeHourLimitViolationWarning |= sE.total_emp_hour_limit_violations > 0
+
+            unfilled = 0
+            overstaffed = 0
+
+            for i in range(28, 84):
+                for day in range(7):
+                    count = sum(1 for sched in empIdToSched.values() if sched[day][i] == '1')
+                    if count == 0:
+                        unfilled += 1
+            
+            if(sE.total_emp_hour_limit_violations > 0):
+                ## Note that this warning should never be trigerred, the algorithm only assigns
+                ## workers when they are available. This warn has been left to trigger
+                ## should future developers change/tamper with the algorithm
+                print("WARN: Employee Hour Limit Violated")
+            else:
+                top_schedules.append((unfilled, empIdToSched, sE))
+
+            
+        
+        top_schedules = sorted(top_schedules, key=lambda x: x[0])[:5]
+
+        ## To Do: If the employee limit violation warning is true, then we should return
+        ## To Do: The Parser Must be Integrated so that the schedules end up in the format 
+
+    except json.JSONDecodeError:
+        return HttpResponseBadRequest("Invalid JSON.")
     except Exception as e:
-        return JsonResponse({
-            'error': 'Schedule generation failed',
-            'details': str(e)
-        }, status=500)
+        return JsonResponse({"error": str(e)}, status=500)
 
     
 @csrf_exempt
