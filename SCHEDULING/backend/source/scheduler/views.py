@@ -158,17 +158,70 @@ def generate_schedule(request):
             else:
                 top_schedules.append((unfilled, empIdToSched, sE))
 
-            
-        
         top_schedules = sorted(top_schedules, key=lambda x: x[0])[:5]
-
-        ## To Do: If the employee limit violation warning is true, then we should return
-        ## To Do: The Parser Must be Integrated so that the schedules end up in the format 
+        employees_by_id = {emp.employee_id: emp for emp in employees}
+        formatted_result = format_all_schedules(top_schedules, employees_by_id)
+        return JsonResponse(formatted_result, safe=False, status=200)
 
     except json.JSONDecodeError:
         return HttpResponseBadRequest("Invalid JSON.")
     except Exception as e:
         return JsonResponse({"error": str(e)}, status=500)
+
+
+def format_all_schedules(top_schedules, employees_by_id, start_date="2025-04-28"):
+    """
+    Convert list of top schedules to the final format expected by the frontend.
+    Each schedule contains a ranked list of employees and their events.
+    """
+    tz = pytz.timezone("America/New_York")
+    base_date = datetime.fromisoformat(start_date).replace(tzinfo=tz)
+    formatted = []
+
+    for rank, (unfilled, empIdToSched, _) in enumerate(top_schedules, start=1):
+        entries = []
+
+        for emp_id, week in empIdToSched.items():
+            emp = employees_by_id.get(emp_id)
+            if not emp:
+                continue
+
+            events = []
+            for day_index, bitstring in enumerate(week):
+                i = 0
+                while i < len(bitstring):
+                    if bitstring[i] == '1':
+                        start_block = i
+                        while i < len(bitstring) and bitstring[i] == '1':
+                            i += 1
+                        end_block = i - 1
+
+                        start_time = base_date + timedelta(days=day_index, minutes=15 * start_block)
+                        end_time = base_date + timedelta(days=day_index, minutes=15 * (end_block + 1))
+
+                        events.append({
+                            "start": start_time.isoformat(),
+                            "end": end_time.isoformat()
+                        })
+                    else:
+                        i += 1
+
+            entries.append({
+                "employee": {
+                    "firstName": emp.first_name,
+                    "lastName": emp.last_name,
+                    "employeeId": emp.employee_id
+                },
+                "events": events
+            })
+
+        formatted.append({
+            "scheduleRank": rank,
+            "entries": entries
+        })
+
+    return formatted
+
 
     
 @csrf_exempt
