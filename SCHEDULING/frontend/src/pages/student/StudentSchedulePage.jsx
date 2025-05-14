@@ -2,20 +2,10 @@
 import React, { useState } from 'react';
 import ICAL from 'ical.js';
 import MyCalendar from './MyCalendar';
+import { hashStudentId } from '../../utils/hash';
 
 // Helper function to validate student ID (8 digits only)
 const numeric8 = (v) => v.replace(/[^0-9]/g, "").slice(0, 8);
-
-// Hash function for student ID
-function hashStudentId(studentId) {
-  let hash = 0;
-  for (let i = 0; i < studentId.length; i++) {
-    const char = studentId.charCodeAt(i);
-    hash = ((hash << 5) - hash) + char;
-    hash = hash & hash; // Convert to 32bit integer
-  }
-  return hash.toString();
-}
 
 function generateEmptyGrid() {
   const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
@@ -136,15 +126,22 @@ export default function StudentSchedulePage() {
     }
 
     const hashedStudentId = hashStudentId(studentInfo.studentId);
+    console.log('Original Student ID:', studentInfo.studentId);
+    console.log('Hashed Student ID:', hashedStudentId);
+
+    // Filter manual "Available" events
+    const availableEvents = tempEvents.filter(evt => evt.source === 'manual' && evt.title === 'Available');
+    console.log('Available events:', availableEvents);
+
     const payload = {
       student: {
         firstName: studentInfo.firstName,
         lastName: studentInfo.lastName,
         studentId: hashedStudentId,
-        originalStudentId: studentInfo.studentId, // Keep original for email generation
-        email: `${studentInfo.studentId}@umb.edu` // Generate email from original student ID
+        originalStudentId: studentInfo.studentId,
+        email: `${studentInfo.studentId}@umb.edu`
       },
-      events: tempEvents.map(evt => ({
+      events: availableEvents.map(evt => ({
         id: evt.id,
         title: evt.title,
         start: evt.start,
@@ -155,6 +152,8 @@ export default function StudentSchedulePage() {
       generatedAt: new Date().toISOString()
     };
 
+    console.log('Sending payload:', payload);
+
     fetch('http://localhost:8000/submit-availability/', {
       method: 'PUT',
       headers: {
@@ -163,19 +162,21 @@ export default function StudentSchedulePage() {
       body: JSON.stringify(payload)
     })
       .then((res) => {
+        console.log('Response status:', res.status);
         if (!res.ok) {
           return res.json().then(data => {
+            console.error('Error response:', data);
             throw new Error(data.error || 'Failed to submit');
           });
         }
         return res.json();
       })
       .then((data) => {
+        console.log('Success response:', data);
         alert('Availability saved successfully!');
-        console.log('Response:', data);
       })
       .catch((err) => {
-        console.error(err);
+        console.error('Error:', err);
         alert(err.message || 'Failed to save availability.');
       });
   }

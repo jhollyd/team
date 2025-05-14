@@ -74,65 +74,94 @@ export default function AdminStudentsPage() {
   };
 
   const submitNew = async () => {
+    // Filter out students that haven't been synced yet
+    const studentsToSubmit = students.filter(s => !s.synced);
+    
+    if (studentsToSubmit.length === 0) {
+      setStatusMsg("No new students to update");
+      return;
+    }
+
+    console.log("Submitting students:", studentsToSubmit);  // Debug log
+
     try {
-      // Get all students that need updating (either new or modified)
-      const studentsToSubmit = students.filter(s => !s.synced);
-      
-      if (studentsToSubmit.length === 0) {
-        setStatusMsg("No changes to update");
-        return;
-      }
-
-      const body = {
-        listofstudents: studentsToSubmit.map((s) => ({
-          student_id: s.studentId,
-          student_email: `${s.studentId}@umb.edu`,
-          first_name: s.firstName,
-          last_name: s.lastName,
-          max_hours: s.maxHours || 0,
-          f1_status: s.isInternational || false,
-          priority: s.priority || 0
-        }))
-      };
-
-      console.log('Sending request with body:', JSON.stringify(body, null, 2));
-
-      // Update the database
-      const updateResponse = await fetch(`${API}/admin-form/`, {
-        method: "POST",
-        headers: { 
-          "Content-Type": "application/json",
-          "Accept": "application/json"
+      const response = await fetch(`${API}/admin-form/`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
         },
-        body: JSON.stringify(body),
+        body: JSON.stringify({
+          listofstudents: studentsToSubmit.map(s => ({
+            student_id: s.studentId,
+            first_name: s.firstName,
+            last_name: s.lastName,
+            student_email: `${s.studentId}@umb.edu`,
+            max_hours: s.maxHours,
+            f1_status: s.isInternational,
+            priority: s.priority
+          }))
+        })
       });
 
-      if (!updateResponse.ok) {
-        const errorData = await updateResponse.json();
-        throw new Error(errorData.error || 'Failed to update students');
+      console.log("Response status:", response.status);  // Debug log
+      const data = await response.json();
+      console.log("Response data:", data);  // Debug log
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to submit');
       }
 
-      const updateData = await updateResponse.json();
-      console.log('Admin form response:', updateData);
-
-      // Then, fetch the latest data
-      const studentsResponse = await fetch(`${API}/students/`);
-      if (!studentsResponse.ok) {
-        throw new Error('Failed to fetch updated students list');
-      }
-
-      const studentsData = await studentsResponse.json();
-      console.log('Updated students data:', JSON.stringify(studentsData, null, 2));
-
-      // Update the local state with the latest data
-      setStudents(studentsData.students.map(s => ({
+      // Mark all submitted students as synced
+      setStudents(prev => prev.map(s => ({
         ...s,
         synced: true
       })));
-      setStatusMsg("✅ Students updated in DB!");
+      setStatusMsg("Students updated successfully");
     } catch (error) {
-      console.error("Error in update process:", error);
-      setStatusMsg(`⚠︎ Error: ${error.message}`);
+      console.error("Error submitting students:", error);  // Debug log
+      setStatusMsg(error.message || "Failed to update students");
+    }
+  };
+
+  const updateParameters = async () => {
+    // Get all students that need updating
+    const studentsToUpdate = students.filter(s => !s.synced);
+    
+    if (studentsToUpdate.length === 0) {
+      setStatusMsg("No changes to update");
+      return;
+    }
+
+    try {
+      const response = await fetch(`${API}/update-parameters/`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          updates: studentsToUpdate.map(s => ({
+            student_id: s.studentId,  // This is already the hashed ID from the backend
+            max_hours: s.maxHours,
+            f1_status: s.isInternational,
+            priority: s.priority
+          }))
+        })
+      });
+
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to update parameters');
+      }
+
+      // Mark all updated students as synced
+      setStudents(prev => prev.map(s => ({
+        ...s,
+        synced: true
+      })));
+      setStatusMsg("Parameters updated successfully");
+    } catch (error) {
+      console.error("Error updating parameters:", error);
+      setStatusMsg(error.message || "Failed to update parameters");
     }
   };
 
@@ -176,13 +205,21 @@ export default function AdminStudentsPage() {
         </div>
       </form>
 
-      {/* submit button */}
-      <button
-        className="btn btn-success mb-3"
-        onClick={submitNew}
-      >
-        Update Students → DB
-      </button>
+      {/* submit buttons */}
+      <div className="mb-3">
+        <button
+          className="btn btn-success me-2"
+          onClick={submitNew}
+        >
+          Update Students → DB
+        </button>
+        <button
+          className="btn btn-primary"
+          onClick={updateParameters}
+        >
+          Update Parameters → DB
+        </button>
+      </div>
 
       {statusMsg && <div className="alert alert-info py-2">{statusMsg}</div>}
 

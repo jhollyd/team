@@ -7,6 +7,7 @@ import dayGridPlugin   from "@fullcalendar/daygrid";
 import timeGridPlugin  from "@fullcalendar/timegrid";
 import interaction     from "@fullcalendar/interaction";
 import * as XLSX from 'xlsx';
+import { hashStudentId } from '../../utils/hash';
 
 const API = "http://localhost:8000";
 
@@ -477,16 +478,6 @@ export default function AdminSchedulesPage() {
     return buf;
   };
 
-  const hashStudentId = (id) => {
-    let hash = 0;
-    for (let i = 0; i < id.length; i++) {
-      const char = id.charCodeAt(i);
-      hash = ((hash << 5) - hash) + char;
-      hash = hash & hash; // Convert to 32bit integer
-    }
-    return hash.toString();
-  };
-
   const saveSchedule = () => {
     if(!rows.length) return;
 
@@ -498,7 +489,7 @@ export default function AdminSchedulesPage() {
         employeeId: hashStudentId(entry.employee.employeeId)
       }
     }));
-    const body    = { comment:"Saved from UI", entries: hashedEntries };
+    const body = { comment:"Saved from UI", entries: hashedEntries };
 
     fetch(`${API}/save-schedule/`,{
       method:"PUT",

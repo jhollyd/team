@@ -6,6 +6,7 @@ import math
 from .models import AdminSubmission, Employee, SavedSchedules
 from .scheduleEngine import ScheduleEngine
 import random
+from .utils import hash_student_id
 
 # Home view for the root URL
 def home(request):
@@ -25,31 +26,39 @@ def admin_form_submission(request):
             # Create or update Employee records
             for student in body.get('listofstudents', []):
                 original_student_id = student.get('student_id')
+                print(f"Processing student with ID: {original_student_id}")  # Debug log
+                
                 if not (isinstance(original_student_id, str) and original_student_id.isdigit() and len(original_student_id) == 8):
+                    print(f"Invalid student_id format: {original_student_id}")  # Debug log
                     return JsonResponse({'error': 'Invalid student_id'}, status=400)
+                
                 max_hours = student.get('max_hours', 0)
                 if not (isinstance(max_hours, int) and max_hours >= 0):
+                    print(f"Invalid max_hours: {max_hours}")  # Debug log
                     return JsonResponse({'error': 'max_hours must be a non-negative integer'}, status=400)
+                
                 priority = student.get('priority', 0)
                 if not (isinstance(priority, int) and priority >= 0):
+                    print(f"Invalid priority: {priority}")  # Debug log
                     return JsonResponse({'error': 'priority must be a non-negative integer'}, status=400)
+                
                 f1_status = student.get('f1_status', False)
                 if not isinstance(f1_status, bool):
+                    print(f"Invalid f1_status: {f1_status}")  # Debug log
                     return JsonResponse({'error': 'f1_status must be boolean'}, status=400)
                 
-                # Hash the student ID
-                hash_value = 0
-                for char in original_student_id:
-                    hash_value = ((hash_value << 5) - hash_value) + ord(char)
-                    hash_value = hash_value & hash_value  # Convert to 32bit integer
-                student_id = str(hash_value)
+                # Hash the student ID using the shared function
+                student_id = hash_student_id(original_student_id)
+                print(f"Hashed student_id: {student_id}")  # Debug log
                     
                 # Get existing employee if any
                 try:
                     existing_employee = Employee.objects.get(student_id=student_id)
+                    print(f"Found existing employee: {existing_employee.student_id}")  # Debug log
                     # Preserve existing availability
                     availability = existing_employee.availability
                 except Employee.DoesNotExist:
+                    print(f"No existing employee found for ID: {student_id}")  # Debug log
                     # Initialize with all busy for new employees
                     availability = ['1' * 96 for _ in range(7)]
                     
@@ -70,7 +79,7 @@ def admin_form_submission(request):
                         'schedule': []  # Initialize empty schedule
                     }
                 )
-                print(f"{'Created' if created else 'Updated'} employee:", employee.employee_id)  # Debug log
+                print(f"{'Created' if created else 'Updated'} employee: {employee.student_id}")  # Debug log
             
             return JsonResponse({'status': 'admin form received and employees created/updated'})
         except Exception as e:
@@ -82,66 +91,133 @@ def admin_form_submission(request):
 @csrf_exempt
 def submit_availability(request):
     if request.method == 'PUT':
-        body = json.loads(request.body)
-        student_id = body['student']['studentId']  # This is now the hashed ID
-        original_student_id = body['student']['originalStudentId']  # Get the original ID
-        # Filter manual "Available" events
-        events = [evt for evt in body['events'] if evt['source'] == 'manual' and evt['title'] == 'Available']
-        
         try:
-            employee = Employee.objects.get(student_id=student_id)
-        except Employee.DoesNotExist:
-            return JsonResponse({'error': 'Student not found. Please contact the administrator to add your information.'}, status=404)
-        
-        # Initialize availability: 7 days, 96 bits each (24 hours * 4 slots/hour)
-        availability = ['1' * 96 for _ in range(7)]  # '1' = busy
-        
-        for event in events:
+            body = json.loads(request.body)
+            print("Received availability submission:", body)  # Debug log
+            
+            student_id = body['student']['studentId']  # This is the hashed ID
+            original_student_id = body['student']['originalStudentId']  # Get the original ID
+            first_name = body['student']['firstName']
+            last_name = body['student']['lastName']
+            print(f"Looking for student with hashed ID: {student_id}")  # Debug log
+            print(f"Student info: {first_name} {last_name}")  # Debug log
+            
+            # Filter manual "Available" events
+            events = [evt for evt in body['events'] if evt['source'] == 'manual' and evt['title'] == 'Available']
+            print(f"Found {len(events)} available events")  # Debug log
+            
             try:
-                start = datetime.fromisoformat(event['start'].replace('Z', '+00:00'))
-                end = datetime.fromisoformat(event['end'].replace('Z', '+00:00')) if event['end'] else start
-            except Exception:
-                return JsonResponse({'error': 'Invalid date format in availability event'}, status=400)
-            day_index = start.weekday()  # 0=Monday, 6=Sunday
-            start_hour = start.hour + start.minute / 60
-            end_hour = end.hour + end.minute / 60
-            start_idx = max(0, min(math.floor(start_hour * 4), 96))
-            end_idx = max(0, min(math.ceil(end_hour * 4), 96))
-            # Set available slots to '0', ensure string remains 96 chars
-            day_str = availability[day_index]
-            new_day = (
-                day_str[:start_idx] +
-                '0' * (end_idx - start_idx) +
-                day_str[end_idx:]
-            )
-            # Pad or trim to 96 chars
-            if len(new_day) < 96:
-                new_day = new_day + '1' * (96 - len(new_day))
-            elif len(new_day) > 96:
-                new_day = new_day[:96]
-            availability[day_index] = new_day
-        
-        employee.availability = availability
-        employee.save()
-        return JsonResponse({'status': 'availability submitted'})
+                # First try to find by hashed ID
+                employee = Employee.objects.get(student_id=student_id)
+                print(f"Found employee with hashed ID {student_id}")  # Debug log
+                
+                # Verify name matches
+                if employee.first_name.lower() != first_name.lower() or employee.last_name.lower() != last_name.lower():
+                    print(f"Name mismatch: DB has {employee.first_name} {employee.last_name}, received {first_name} {last_name}")  # Debug log
+                    return JsonResponse({
+                        'error': 'Student information does not match. Please verify your name and ID.'
+                    }, status=400)
+                
+            except Employee.DoesNotExist:
+                # If not found, try to find by original ID
+                try:
+                    hashed_id = hash_student_id(original_student_id)
+                    print(f"Trying to find by original ID {original_student_id} (hashed to {hashed_id})")  # Debug log
+                    employee = Employee.objects.get(student_id=hashed_id)
+                    print(f"Found employee with original ID {original_student_id}")  # Debug log
+                    
+                    # Verify name matches
+                    if employee.first_name.lower() != first_name.lower() or employee.last_name.lower() != last_name.lower():
+                        print(f"Name mismatch: DB has {employee.first_name} {employee.last_name}, received {first_name} {last_name}")  # Debug log
+                        return JsonResponse({
+                            'error': 'Student information does not match. Please verify your name and ID.'
+                        }, status=400)
+                    
+                except Employee.DoesNotExist:
+                    print(f"Employee not found with either ID")  # Debug log
+                    return JsonResponse({
+                        'error': 'Student not found. Please contact the administrator to add your information.'
+                    }, status=404)
+            
+            # Initialize availability: 7 days, 96 bits each (24 hours * 4 slots/hour)
+            availability = ['1' * 96 for _ in range(7)]  # '1' = busy
+            
+            for event in events:
+                try:
+                    start = datetime.fromisoformat(event['start'].replace('Z', '+00:00'))
+                    end = datetime.fromisoformat(event['end'].replace('Z', '+00:00')) if event['end'] else start
+                    print(f"Processing event from {start} to {end}")  # Debug log
+                except Exception as e:
+                    print(f"Error parsing date: {e}")  # Debug log
+                    return JsonResponse({'error': 'Invalid date format in availability event'}, status=400)
+                
+                day_index = start.weekday()  # 0=Monday, 6=Sunday
+                start_hour = start.hour + start.minute / 60
+                end_hour = end.hour + end.minute / 60
+                start_idx = max(0, min(math.floor(start_hour * 4), 96))
+                end_idx = max(0, min(math.ceil(end_hour * 4), 96))
+                print(f"Setting availability for day {day_index} from {start_hour} to {end_hour}")  # Debug log
+                
+                # Set available slots to '0', ensure string remains 96 chars
+                day_str = availability[day_index]
+                new_day = (
+                    day_str[:start_idx] +
+                    '0' * (end_idx - start_idx) +
+                    day_str[end_idx:]
+                )
+                # Pad or trim to 96 chars
+                if len(new_day) < 96:
+                    new_day = new_day + '1' * (96 - len(new_day))
+                elif len(new_day) > 96:
+                    new_day = new_day[:96]
+                availability[day_index] = new_day
+            
+            employee.availability = availability
+            employee.save()
+            print(f"Successfully saved availability for employee {student_id}")  # Debug log
+            return JsonResponse({'status': 'availability submitted'})
+        except Exception as e:
+            print(f"Error in submit_availability: {str(e)}")  # Debug log
+            return JsonResponse({'error': str(e)}, status=500)
     return JsonResponse({'error': 'Only PUT allowed'}, status=405)
 
 # Update employee parameters
 @csrf_exempt
 def update_parameters(request):
     if request.method == 'PUT':
-        body = json.loads(request.body)
-        updates = body.get('updates', [])
-        for update in updates:
-            try:
-                employee = Employee.objects.get(employee_id=update['student_id'])
-                employee.params['max_hours'] = update.get('max_hours', employee.params.get('max_hours', 0))
-                employee.params['f1_status'] = update.get('f1_status', employee.params.get('f1_status', False))
-                employee.params['priority'] = update.get('priority', employee.params.get('priority', 0))
-                employee.save()
-            except Employee.DoesNotExist:
-                return JsonResponse({'error': f"Employee {update['student_id']} not found"}, status=404)
-        return JsonResponse({'status': 'parameters updated'})
+        try:
+            body = json.loads(request.body)
+            updates = body.get('updates', [])
+            print("Received parameter updates:", updates)  # Debug log
+            
+            for update in updates:
+                try:
+                    # Hash the student ID if it's not already hashed
+                    student_id = update['student_id']
+                    if len(student_id) == 8 and student_id.isdigit():  # If it's an original ID
+                        student_id = hash_student_id(student_id)
+                    
+                    print(f"Looking for student with ID: {student_id}")  # Debug log
+                    employee = Employee.objects.get(student_id=student_id)
+                    print(f"Found employee: {employee.first_name} {employee.last_name}")  # Debug log
+                    
+                    # Update parameters
+                    employee.params['max_hours'] = update.get('max_hours', employee.params.get('max_hours', 0))
+                    employee.params['f1_status'] = update.get('f1_status', employee.params.get('f1_status', False))
+                    employee.params['priority'] = update.get('priority', employee.params.get('priority', 0))
+                    employee.save()
+                    print(f"Updated parameters for {employee.first_name} {employee.last_name}")  # Debug log
+                except Employee.DoesNotExist:
+                    print(f"Employee not found with ID: {student_id}")  # Debug log
+                    return JsonResponse({'error': f"Student {student_id} not found"}, status=404)
+                except Exception as e:
+                    print(f"Error updating parameters: {str(e)}")  # Debug log
+                    return JsonResponse({'error': str(e)}, status=500)
+            
+            return JsonResponse({'status': 'parameters updated'})
+        except Exception as e:
+            print(f"Error in update_parameters: {str(e)}")  # Debug log
+            return JsonResponse({'error': str(e)}, status=500)
     return JsonResponse({'error': 'Only PUT allowed'}, status=405)
 
 # Generate schedules
