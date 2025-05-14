@@ -92,32 +92,41 @@ export default function AdminStudentsPage() {
 
   const submitNew = async () => {
     try {
-    const body = {
-        listofstudents: students.map((s) => ({
-        student_id: s.studentId,
-        student_email: `${s.studentId}@umb.edu`,
+      // Filter out any students that haven't been synced yet
+      const studentsToSubmit = students.filter(s => !s.synced);
+      
+      if (studentsToSubmit.length === 0) {
+        setStatusMsg("No new students to update");
+        return;
+      }
+
+      const body = {
+        listofstudents: studentsToSubmit.map((s) => ({
+          student_id: s.studentId,
+          student_email: `${s.studentId}@umb.edu`,
           first_name: s.firstName,
           last_name: s.lastName,
           max_hours: s.maxHours || 0,
           f1_status: s.isInternational || false,
           priority: s.priority || 0
-      })),
-    };
+        }))
+      };
 
       console.log('Sending request with body:', JSON.stringify(body, null, 2));
 
       // First, update the database
       const updateResponse = await fetch(`${API}/admin-form/`, {
-      method: "POST",
+        method: "POST",
         headers: { 
           "Content-Type": "application/json",
           "Accept": "application/json"
         },
-      body: JSON.stringify(body),
+        body: JSON.stringify(body),
       });
 
       if (!updateResponse.ok) {
-        throw new Error('Failed to update students');
+        const errorData = await updateResponse.json();
+        throw new Error(errorData.error || 'Failed to update students');
       }
 
       const updateData = await updateResponse.json();
