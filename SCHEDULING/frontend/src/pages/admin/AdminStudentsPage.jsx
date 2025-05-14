@@ -1,5 +1,4 @@
 import React, { useEffect, useState } from "react";
-import dayGridPlugin from "@fullcalendar/daygrid";
 
 /* -------- API root (change for prod) -------- */
 const API = "http://localhost:8000";
@@ -25,26 +24,6 @@ export default function AdminStudentsPage() {
       });
   }, []);
 
-  const handleDelete = (studentId) => {
-    if (!window.confirm('Are you sure you want to delete this student?')) {
-      return;
-    }
-
-    fetch(`${API}/delete-student/?student_id=${studentId}`, {
-      method: 'DELETE',
-    })
-      .then((r) => {
-        if (!r.ok) throw new Error('Failed to delete student');
-        // Remove the student from the local state
-        setStudents((prev) => prev.filter((s) => s.studentId !== studentId));
-        setStatusMsg('✅ Student deleted successfully');
-      })
-      .catch((err) => {
-        console.error('Error deleting student:', err);
-        setStatusMsg('⚠︎ Failed to delete student');
-      });
-  };
-
   /* ---------- add row locally ---------- */
   const handleAdd = (e) => {
     e.preventDefault();
@@ -59,7 +38,6 @@ export default function AdminStudentsPage() {
       maxHours: 0,
       priority: 0,
       synced: false,                            // pending
-      hasSubmittedAvailability: false,          // new field
     };
     setStudents((prev) => [...prev, row]);
     setFirst("");
@@ -89,143 +67,233 @@ export default function AdminStudentsPage() {
     }).catch(() => console.log("update-parameters offline"));
   };
 
-  const submitNew = () => {
-    const pending = students.filter((s) => !s.synced);
-    const existing = students.filter((s) => s.synced);
-    if (!pending.length && !existing.length) return alert("No students to submit.");
+  const handleDelete = async (id) => {
+    try {
+      const studentToDelete = students.find(s => s.id === id);
+      if (!studentToDelete) return;
 
+      // Delete from backend
+      const response = await fetch(`${API}/delete-student/?student_id=${studentToDelete.studentId}`, {
+        method: 'DELETE',
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to delete student');
+      }
+
+      // Update local state
+      setStudents(prev => prev.filter(s => s.id !== id));
+      setStatusMsg("✅ Student deleted successfully");
+    } catch (error) {
+      console.error("Error deleting student:", error);
+      setStatusMsg("⚠︎ Error deleting student");
+    }
+  };
+
+  const submitNew = async () => {
+    try {
     const body = {
-      students: [
-        ...pending.map((s) => ({
-          studentId: s.studentId,
-          firstName: s.firstName,
-          lastName: s.lastName,
-          email: `${s.studentId}@umb.edu`,
-          maxHours: s.maxHours,
-          f1Status: s.isInternational,
-          priority: s.priority
-        })),
-        ...existing.map((s) => ({
-          studentId: s.studentId,
-          firstName: s.firstName,
-          lastName: s.lastName,
-          email: `${s.studentId}@umb.edu`,
-          maxHours: s.maxHours,
-          f1Status: s.isInternational,
-          priority: s.priority
-        }))
-      ],
+        listofstudents: students.map((s) => ({
+        student_id: s.studentId,
+        student_email: `${s.studentId}@umb.edu`,
+          first_name: s.firstName,
+          last_name: s.lastName,
+          max_hours: s.maxHours || 0,
+          f1_status: s.isInternational || false,
+          priority: s.priority || 0
+      })),
     };
 
-    fetch(`${API}/admin-form/`, {
+      console.log('Sending request with body:', JSON.stringify(body, null, 2));
+
+      // First, update the database
+      const updateResponse = await fetch(`${API}/admin-form/`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+        headers: { 
+          "Content-Type": "application/json",
+          "Accept": "application/json"
+        },
       body: JSON.stringify(body),
-    })
-      .then((r) => {
-        if (!r.ok) throw new Error();
-        /* mark new rows as synced */
-        setStudents((prev) =>
-          prev.map((s) =>
-            pending.some(p => p.studentId === s.studentId) ? { ...s, synced: true } : s
-          )
-        );
-        setStatusMsg("✅ Students updated successfully!");
-      })
-      .catch(() => setStatusMsg("⚠︎ Could not reach backend."));
+      });
+
+      if (!updateResponse.ok) {
+        throw new Error('Failed to update students');
+      }
+
+      const updateData = await updateResponse.json();
+      console.log('Admin form response:', updateData);
+
+      // Then, fetch the latest data
+      const studentsResponse = await fetch(`${API}/students/`);
+      if (!studentsResponse.ok) {
+        throw new Error('Failed to fetch updated students list');
+      }
+
+      const studentsData = await studentsResponse.json();
+      console.log('Updated students data:', JSON.stringify(studentsData, null, 2));
+
+      // Update the local state with the latest data
+      setStudents(studentsData.students.map(s => ({
+        ...s,
+        synced: true
+      })));
+      setStatusMsg("✅ Students updated in DB!");
+    } catch (error) {
+      console.error("Error in update process:", error);
+      setStatusMsg(`⚠︎ Error: ${error.message}`);
+    }
   };
 
   return (
-    <div className="container-fluid">
-      <div className="row">
-        <div className="col-12">
-          <div className="card">
-            <div className="card-header">
-              <h5 className="card-title">Student Management</h5>
-            </div>
-            <div className="card-body">
-              <table className="table">
-                <thead>
-                  <tr>
-                    <th>Student ID</th>
-                    <th>First Name</th>
-                    <th>Last Name</th>
-                    <th>Max Hours</th>
-                    <th>International</th>
-                    <th>Priority</th>
-                    <th>Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {students.map((s) => (
-                    <tr key={s.id}>
-                      <td>{s.studentId}</td>
-                      <td>{s.firstName}</td>
-                      <td>{s.lastName}</td>
-                      <td>
-                        <input
-                          type="number"
-                          className="form-control form-control-sm"
-                          style={{ width: 80 }}
-                          min="0"
-                          max={s.isInternational ? 20 : 40}
-                          value={s.maxHours}
-                          onChange={(e) => {
-                            if (!s.synced) return;
-                            const row = { ...s, maxHours: Number(e.target.value) };
-                            patch(s.id, row);
-                            fireUpdateAPI(row);
-                          }}
-                          disabled={!s.synced}
-                        />
-                      </td>
-                      <td>
-                        <input
-                          type="checkbox"
-                          checked={s.isInternational}
-                          onChange={(e) => {
-                            if (!s.synced) return;
-                            const row = { ...s, isInternational: e.target.checked };
-                            patch(s.id, row);
-                            fireUpdateAPI(row);
-                          }}
-                          disabled={!s.synced}
-                        />
-                      </td>
-                      <td>
-                        <input   
-                          type="number"
-                          className="form-control form-control-sm"
-                          style={{ width: 60 }}
-                          min="0"
-                          max="5"    
-                          value={s.priority}
-                          onChange={(e) => {
-                            if (!s.synced) return;
-                            const row = { ...s, priority: Number(e.target.value) };
-                            patch(s.id, row);
-                            fireUpdateAPI(row);
-                          }}
-                          disabled={!s.synced}
-                        />
-                      </td>
-                      <td>
-                        <button
-                          className="btn btn-danger btn-sm"
-                          onClick={() => handleDelete(s.studentId)}
-                          disabled={!s.synced}
-                          title="Delete student"
-                        >
-                          🗑️
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
+    <div className="p-3">
+      <h2>Manage Students</h2>
+
+      {/* add form */}
+      <form className="row g-2 align-items-end mb-3" onSubmit={handleAdd}>
+        <div className="col-sm-3">
+          <label className="form-label">First</label>
+          <input
+            className="form-control"
+            value={first}
+            onChange={(e) => setFirst(e.target.value)}
+            required
+          />
         </div>
+        <div className="col-sm-3">
+          <label className="form-label">Last</label>
+          <input
+            className="form-control"
+            value={last}
+            onChange={(e) => setLast(e.target.value)}
+            required
+          />
+        </div>
+        <div className="col-sm-3">
+          <label className="form-label">Student ID</label>
+          <input
+            className="form-control"
+            value={sid}
+            onChange={(e) => setSid(numeric8(e.target.value))}
+            maxLength={8}
+            inputMode="numeric"
+            required
+          />
+        </div>
+        <div className="col-sm-3">
+          <button className="btn btn-primary w-100">Add (local)</button>
+        </div>
+      </form>
+
+      {/* submit button */}
+      <button
+        className="btn btn-success mb-3"
+        onClick={submitNew}
+      >
+        Update Students → DB
+      </button>
+
+      {statusMsg && <div className="alert alert-info py-2">{statusMsg}</div>}
+
+      {/* table */}
+      <div className="table-responsive">
+        <table className="table align-middle">
+          <thead className="table-light">
+            <tr>
+              <th>Name</th>
+              <th>Status</th>
+              <th>Intl?</th>
+              <th>Max Hours</th>
+              <th>Priority</th>
+              <th>Submitted Availability</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {students.map((s) => (
+              <tr key={s.id}>
+                <td>{s.firstName} {s.lastName}</td>
+                <td>
+                  {s.synced ? (
+                    <span className="badge bg-success">✔︎</span>
+                  ) : (
+                    <span className="badge bg-danger">📌 Pending</span>
+                  )}
+                </td>
+
+                <td>
+                  <select
+                    value={s.isInternational ? "Yes" : "No"}
+                    onChange={(e) => {
+                      if (!s.synced) return;
+                      const intl = e.target.value === "Yes";
+                      const capped = Math.min(intl ? 20 : 40, s.maxHours || 0);
+                      const row = { ...s, isInternational: intl, maxHours: capped };
+                      patch(s.id, row);
+                      fireUpdateAPI(row);
+                    }}
+                    disabled={!s.synced}
+                  >
+                    <option>No</option>
+                    <option>Yes</option>
+                  </select>
+                </td>
+
+                <td>
+                  <input
+                    type="number"
+                    className="form-control form-control-sm"
+                    style={{ width: 80 }}
+                    min="0"
+                    max={s.isInternational ? 20 : 40}
+                    value={s.maxHours}
+                    onChange={(e) => {
+                      if (!s.synced) return;
+                      const row = { ...s, maxHours: Number(e.target.value) };
+                      patch(s.id, row);
+                      fireUpdateAPI(row);
+                    }}
+                    disabled={!s.synced}
+                  />
+                </td>
+
+                <td>
+                  <input   
+                    type="number"
+                    className="form-control form-control-sm"
+                    style={{ width: 60 }}
+                    min="0"
+                    max="5"    
+                    value={s.priority}
+                    onChange={(e) => {
+                      if (!s.synced) return;
+                      const row = { ...s, priority: Number(e.target.value) };
+                      patch(s.id, row);
+                      fireUpdateAPI(row);
+                    }}
+                    disabled={!s.synced}
+                  />
+                </td>
+
+                <td>
+                  {s.hasSubmittedAvailability ? (
+                    <span className="badge bg-success">Yes</span>
+                  ) : (
+                    <span className="badge bg-warning">No</span>
+                  )}
+                </td>
+
+                <td>
+                  <button
+                    className="btn btn-danger btn-sm"
+                    onClick={() => handleDelete(s.id)}
+                  >
+                    Delete
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
     </div>
   );

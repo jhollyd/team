@@ -15,45 +15,67 @@ def home(request):
 @csrf_exempt
 def admin_form_submission(request):
     if request.method == 'POST':
-        body = json.loads(request.body)
-        
-        # Create AdminSubmission record
-        AdminSubmission.objects.create(data=body)
-        
-        # Create or update Employee records
-        for student in body.get('students', []):
-            student_id = student.get('studentId')
-            if not student_id:
-                continue
+        try:
+            body = json.loads(request.body)
+            print("Received request body:", body)  # Debug log
+            
+            # Create AdminSubmission record
+            AdminSubmission.objects.create(data=body)
+            
+            # Create or update Employee records
+            for student in body.get('listofstudents', []):
+                original_student_id = student.get('student_id')
+                if not (isinstance(original_student_id, str) and original_student_id.isdigit() and len(original_student_id) == 8):
+                    return JsonResponse({'error': 'Invalid student_id'}, status=400)
+                max_hours = student.get('max_hours', 0)
+                if not (isinstance(max_hours, int) and max_hours >= 0):
+                    return JsonResponse({'error': 'max_hours must be a non-negative integer'}, status=400)
+                priority = student.get('priority', 0)
+                if not (isinstance(priority, int) and priority >= 0):
+                    return JsonResponse({'error': 'priority must be a non-negative integer'}, status=400)
+                f1_status = student.get('f1_status', False)
+                if not isinstance(f1_status, bool):
+                    return JsonResponse({'error': 'f1_status must be boolean'}, status=400)
                 
-            # Get existing employee if any
-            try:
-                existing_employee = Employee.objects.get(student_id=student_id)
-                # Preserve existing availability
-                availability = existing_employee.availability
-            except Employee.DoesNotExist:
-                # Initialize with all busy for new employees
-                availability = ['1' * 96 for _ in range(7)]
-                
-            # Create or update Employee record
-            employee, created = Employee.objects.update_or_create(
-                student_id=student_id,
-                defaults={
-                    'employee_id': student_id,  # Use student_id as employee_id
-                    'first_name': student.get('firstName', ''),
-                    'last_name': student.get('lastName', ''),
-                    'email': student.get('email', f'{student_id}@umb.edu'),
-                    'availability': availability,  # Use existing or new availability
-                    'params': {
-                        'max_hours': student.get('maxHours', 0),
-                        'f1_status': student.get('f1Status', False),
-                        'priority': student.get('priority', 0)
-                    },
-                    'schedule': []  # Initialize empty schedule
-                }
-            )
-        
-        return JsonResponse({'status': 'admin form received and employees created/updated'})
+                # Hash the student ID
+                hash_value = 0
+                for char in original_student_id:
+                    hash_value = ((hash_value << 5) - hash_value) + ord(char)
+                    hash_value = hash_value & hash_value  # Convert to 32bit integer
+                student_id = str(hash_value)
+                    
+                # Get existing employee if any
+                try:
+                    existing_employee = Employee.objects.get(student_id=student_id)
+                    # Preserve existing availability
+                    availability = existing_employee.availability
+                except Employee.DoesNotExist:
+                    # Initialize with all busy for new employees
+                    availability = ['1' * 96 for _ in range(7)]
+                    
+                # Create or update Employee record
+                employee, created = Employee.objects.update_or_create(
+                    student_id=student_id,
+                    defaults={
+                        'employee_id': student_id,  # Use hashed student_id as employee_id
+                        'first_name': student.get('first_name', ''),
+                        'last_name': student.get('last_name', ''),
+                        'email': student.get('student_email', f'{original_student_id}@umb.edu'),
+                        'availability': availability,  # Use existing or new availability
+                        'params': {
+                            'max_hours': max_hours,
+                            'f1_status': f1_status,
+                            'priority': priority
+                        },
+                        'schedule': []  # Initialize empty schedule
+                    }
+                )
+                print(f"{'Created' if created else 'Updated'} employee:", employee.employee_id)  # Debug log
+            
+            return JsonResponse({'status': 'admin form received and employees created/updated'})
+        except Exception as e:
+            print("Error in admin_form_submission:", str(e))  # Debug log
+            return JsonResponse({'error': str(e)}, status=500)
     return JsonResponse({'error': 'Only POST allowed'}, status=405)
 
 # Submit student availability
@@ -61,7 +83,8 @@ def admin_form_submission(request):
 def submit_availability(request):
     if request.method == 'PUT':
         body = json.loads(request.body)
-        student_id = body['student']['studentId']
+        student_id = body['student']['studentId']  # This is now the hashed ID
+        original_student_id = body['student']['originalStudentId']  # Get the original ID
         # Filter manual "Available" events
         events = [evt for evt in body['events'] if evt['source'] == 'manual' and evt['title'] == 'Available']
         
@@ -74,19 +97,29 @@ def submit_availability(request):
         availability = ['1' * 96 for _ in range(7)]  # '1' = busy
         
         for event in events:
-            start = datetime.fromisoformat(event['start'].replace('Z', '+00:00'))
-            end = datetime.fromisoformat(event['end'].replace('Z', '+00:00')) if event['end'] else start
+            try:
+                start = datetime.fromisoformat(event['start'].replace('Z', '+00:00'))
+                end = datetime.fromisoformat(event['end'].replace('Z', '+00:00')) if event['end'] else start
+            except Exception:
+                return JsonResponse({'error': 'Invalid date format in availability event'}, status=400)
             day_index = start.weekday()  # 0=Monday, 6=Sunday
             start_hour = start.hour + start.minute / 60
             end_hour = end.hour + end.minute / 60
-            start_idx = math.floor(start_hour * 4)
-            end_idx = min(math.ceil(end_hour * 4), 96)
-            # Set available slots to '0'
-            availability[day_index] = (
-                availability[day_index][:start_idx] +
+            start_idx = max(0, min(math.floor(start_hour * 4), 96))
+            end_idx = max(0, min(math.ceil(end_hour * 4), 96))
+            # Set available slots to '0', ensure string remains 96 chars
+            day_str = availability[day_index]
+            new_day = (
+                day_str[:start_idx] +
                 '0' * (end_idx - start_idx) +
-                availability[day_index][end_idx:]
+                day_str[end_idx:]
             )
+            # Pad or trim to 96 chars
+            if len(new_day) < 96:
+                new_day = new_day + '1' * (96 - len(new_day))
+            elif len(new_day) > 96:
+                new_day = new_day[:96]
+            availability[day_index] = new_day
         
         employee.availability = availability
         employee.save()
@@ -117,6 +150,9 @@ def generate_schedule(request):
     if request.method == 'GET':
         try:
             employee_ids = request.GET.get('employee_ids', '').split(',')
+            print('DEBUG: employee_ids from request:', employee_ids)
+            all_emps = list(Employee.objects.all().values())
+            print('DEBUG: All Employee objects in DB:', all_emps)
             total_hours = int(request.GET.get('total_master_schedule_hours', 40))
             num_schedules = int(request.GET.get('num_schedules_desired', 1))
             min_staff = int(request.GET.get('min_staff_per_shift', 1))
@@ -133,16 +169,23 @@ def generate_schedule(request):
                 return JsonResponse({'error': 'No employees selected'}, status=400)
             
             employees = Employee.objects.filter(employee_id__in=employee_ids)
-            if not employees:
+            if not employees.exists():
                 return JsonResponse({'error': 'No employees found'}, status=404)
             
             # Check if any employees have submitted availability
             employees_with_availability = [emp for emp in employees if any(day != '1' * 96 for day in emp.availability)]
+            print('DEBUG: employees_with_availability:', [emp.employee_id for emp in employees_with_availability])
+            for emp in employees:
+                print(f'DEBUG: emp {emp.employee_id} availability:', emp.availability)
+                for i, day in enumerate(emp.availability):
+                    print(f'DEBUG: emp {emp.employee_id} day {i} length:', len(day))
+                    print(f'DEBUG: emp {emp.employee_id} day {i} != all busy:', day != '1' * 96)
             if not employees_with_availability:
                 return JsonResponse({'error': 'No employees have submitted their availability'}, status=400)
             
             # Check if any employees have max hours set
             employees_with_hours = [emp for emp in employees if emp.params.get('max_hours', 0) > 0]
+            print('DEBUG: employees_with_hours:', [emp.employee_id for emp in employees_with_hours])
             if not employees_with_hours:
                 return JsonResponse({'error': 'No employees have max hours set'}, status=400)
             

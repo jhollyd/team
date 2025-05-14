@@ -6,6 +6,17 @@ import MyCalendar from './MyCalendar';
 // Helper function to validate student ID (8 digits only)
 const numeric8 = (v) => v.replace(/[^0-9]/g, "").slice(0, 8);
 
+// Hash function for student ID
+function hashStudentId(studentId) {
+  let hash = 0;
+  for (let i = 0; i < studentId.length; i++) {
+    const char = studentId.charCodeAt(i);
+    hash = ((hash << 5) - hash) + char;
+    hash = hash & hash; // Convert to 32bit integer
+  }
+  return hash.toString();
+}
+
 function generateEmptyGrid() {
   const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
   const grid = {};
@@ -124,12 +135,14 @@ export default function StudentSchedulePage() {
       return;
     }
 
+    const hashedStudentId = hashStudentId(studentInfo.studentId);
     const payload = {
       student: {
         firstName: studentInfo.firstName,
         lastName: studentInfo.lastName,
-        studentId: studentInfo.studentId,
-        email: `${studentInfo.studentId}@umb.edu` // Generate email from student ID
+        studentId: hashedStudentId,
+        originalStudentId: studentInfo.studentId, // Keep original for email generation
+        email: `${studentInfo.studentId}@umb.edu` // Generate email from original student ID
       },
       events: tempEvents.map(evt => ({
         id: evt.id,
