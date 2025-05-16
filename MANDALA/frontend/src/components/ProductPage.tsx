@@ -12,11 +12,53 @@ interface ProductPageProps {
   product: product;
 }
 
+interface CartItem {
+  id: number;
+  name: string;
+  price: number;
+  color: string;
+  quantity: number;
+}
+
 const ProductPage = ({ product }: ProductPageProps) => {
   const [selectedColor, setSelectedColor] = useState('Black');
+  const [showSuccess, setShowSuccess] = useState(false);
 
   const handleColorChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     setSelectedColor(e.target.value);
+  };
+
+  const handleAddToCart = () => {
+    // Get existing cart
+    const existingCart: CartItem[] = JSON.parse(localStorage.getItem('cart') || '[]');
+    
+    // Check if item with same ID and color already exists
+    const existingItemIndex = existingCart.findIndex(
+      item => item.id === product.id && item.color === selectedColor
+    );
+
+    if (existingItemIndex !== -1) {
+      // If item exists, increase quantity
+      existingCart[existingItemIndex].quantity += 1;
+    } else {
+      // If item doesn't exist, add new item
+      existingCart.push({
+        id: product.id,
+        name: product.name,
+        price: product.price,
+        color: selectedColor,
+        quantity: 1
+      });
+    }
+    
+    // Update cart in localStorage
+    localStorage.setItem('cart', JSON.stringify(existingCart));
+    
+    // Show success message and refresh page
+    setShowSuccess(true);
+    setTimeout(() => {
+      window.location.reload();
+    }, 100); // Wait 1 second to show the success message before refreshing
   };
 
   return (
@@ -53,9 +95,18 @@ const ProductPage = ({ product }: ProductPageProps) => {
             </select>
           </div>
 
-          <button className="bg-gray-900 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded w-full">
+          <button 
+            onClick={handleAddToCart}
+            className="bg-gray-900 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded w-full"
+          >
             Add to Cart
           </button>
+
+          {showSuccess && (
+            <div className="mt-4 p-4 bg-green-100 border border-green-400 text-green-700 rounded">
+              <p>Item added to cart successfully!</p>
+            </div>
+          )}
         </div>
       </div>
     </div>

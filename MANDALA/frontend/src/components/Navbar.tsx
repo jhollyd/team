@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
-import { Menu, X, ShoppingCart, CircleUserRound } from 'lucide-react';
+import { Menu, X, CircleUserRound } from 'lucide-react';
 import { useUser, useClerk, SignInButton } from '@clerk/clerk-react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate, Link } from 'react-router-dom';
+import CartDropdown from './CartDropdown';
 
 const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false);
@@ -13,7 +14,11 @@ const Navbar = () => {
   const location = useLocation();
   const navigate = useNavigate();
 
-  const isGalleryLikePage = location.pathname.startsWith('/gallery') || location.pathname.startsWith('/product');
+  // To correctly display the background color of the navbar on non-home pages
+  const isNonHomePage = location.pathname.startsWith('/gallery') || 
+    location.pathname.startsWith('/product') || 
+    location.pathname.startsWith('/account') || 
+    location.pathname.startsWith('/checkout');
 
   useEffect(() => {
     const handleScroll = () => {
@@ -39,10 +44,6 @@ const Navbar = () => {
     setIsProfileClicked(false);
   };
 
-  const handleCartClick = () => {
-    navigate('/checkout');
-  };
-
   const scrollToSection = (sectionId: string) => {
     navigate('/', { state: { scrollTo: sectionId } });
   };
@@ -50,12 +51,18 @@ const Navbar = () => {
   return (
     <nav
       className={`fixed w-full z-50 transition-all duration-300 ${
-        isScrolled ? 'bg-white shadow-md' : isGalleryLikePage ? 'bg-gray-900' : 'bg-transparent'
+        isScrolled ? 'bg-white shadow-md' : isNonHomePage ? 'bg-gray-900' : 'bg-transparent'
       }`}
     >
       <div className="max-w-8xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between h-16 items-center">
-          <div className=""></div>
+          <div className="flex items-center">
+            <Link to="/" className={`text-xl font-bold hover:text-blue-200 transition-colors ${
+              isScrolled ? 'text-black' : 'text-white'
+            }`}>
+              MANDALA
+            </Link>
+          </div>
 
           <div className="hidden md:block">
             <div className="ml-10 flex items-center space-x-8 text-xl">
@@ -140,16 +147,7 @@ const Navbar = () => {
                 )}
               </div>
 
-              <button
-                className={`relative hover:text-blue-200 transition-colors ${
-                  isScrolled ? 'text-black' : 'text-white'
-                }`}
-                onClick={handleCartClick}
-              >
-                <ShoppingCart size={30} />
-                <span className="absolute -top-2 -right-2 bg-blue-200 text-gray-800 text-xs rounded-full h-5 w-5 flex items-center justify-center">
-                </span>
-              </button>
+              <CartDropdown />
             </div>
           </div>
 
@@ -207,12 +205,7 @@ const Navbar = () => {
                 </button>
               </SignInButton>
             )}
-            <button
-              onClick={handleCartClick}
-              className="block w-full text-left px-3 py-2 text-black font-bold hover:text-red-600"
-            >
-              Cart (0)
-            </button>
+            <CartDropdown />
           </div>
         </div>
       )}

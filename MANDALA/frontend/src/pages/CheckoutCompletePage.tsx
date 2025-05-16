@@ -1,8 +1,13 @@
 import { Link } from 'react-router-dom';
+import { useEffect } from 'react';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 
 const CheckoutCompletePage = () => {
+  useEffect(() => {
+    // Clear the cart from localStorage after successful payment
+    localStorage.removeItem('cart');
+  }, []);
   
   return (
     <div className="min-h-screen flex flex-col">
