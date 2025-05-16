@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Menu, X, ShoppingCart, CircleUserRound } from 'lucide-react';
+import { Menu, X, CircleUserRound } from 'lucide-react';
 import { useUser, useClerk, SignInButton } from '@clerk/clerk-react';
 import { useLocation, useNavigate, Link } from 'react-router-dom';
 import CartDropdown from './CartDropdown';

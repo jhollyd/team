@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 
 interface product {
   id: number;
@@ -24,7 +23,6 @@ interface CartItem {
 const ProductPage = ({ product }: ProductPageProps) => {
   const [selectedColor, setSelectedColor] = useState('Black');
   const [showSuccess, setShowSuccess] = useState(false);
-  const navigate = useNavigate();
 
   const handleColorChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     setSelectedColor(e.target.value);
