@@ -1,13 +1,15 @@
 import { useState, useEffect } from 'react';
 import { loadStripe } from '@stripe/stripe-js';
-import { Elements } from '@stripe/react-stripe-js';
+import { CheckoutProvider } from '@stripe/react-stripe-js';
 import { Link } from 'react-router-dom';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 import StripeCheckoutForm from '../components/StripeCheckoutForm';
 
 // Load Stripe outside of component rendering to avoid recreating the Stripe object
-const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY);
+const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY, {
+  betas: ['custom_checkout_beta_5'],
+});
 
 interface CartItem {
   id: number;
@@ -60,48 +62,43 @@ const Checkout = () => {
     const cartTotal = savedCart.reduce((sum: number, item: CartItem) => sum + (item.price * item.quantity), 0);
     setTotal(cartTotal);
 
-    // Only create payment intent if there are items in the cart
+    // Create checkout session if there are items in the cart
     if (savedCart.length > 0) {
-    // Get API URL from environment variable
-    const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000';
-    
-    // Create PaymentIntent as soon as the page loads
-    fetch(`${apiUrl}/create-payment-intent`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+      
+      fetch(`${apiUrl}/create-checkout-session`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
           items: savedCart.map((item: CartItem) => ({
-            id: item.id,
-            amount: Math.round(item.price * 100) // Convert to cents for Stripe
+            product_id: item.id,
+            name: item.name,
+            amount: Math.round(item.price * 100),
+            quantity: item.quantity,
+            color: item.color
           }))
         }),
-    })
-      .then((res) => {
-        if (!res.ok) {
-          throw new Error(`Server responded with status: ${res.status}`);
-        }
-        return res.json();
       })
-      .then((data) => {
-        if (!data.clientSecret) {
-          throw new Error('No client secret received from server');
-        }
-        setClientSecret(data.clientSecret);
-      })
-      .catch(err => {
-        console.error('Error creating payment intent:', err);
-        setPaymentStatus('error');
-      });
+        .then((res) => {
+          if (!res.ok) {
+            throw new Error(`Server responded with status: ${res.status}`);
+          }
+          return res.json();
+        })
+        .then((data) => {
+          if (!data.clientSecret) {
+            throw new Error('No client secret received from server');
+          }
+          setClientSecret(data.clientSecret);
+        })
+        .catch(err => {
+          console.error('Error creating checkout session:', err);
+          setPaymentStatus('error');
+        });
     } else {
       setPaymentStatus('empty');
     }
   }, []);
-
-  const appearance = {
-    theme: 'stripe' as const,
-  };
-  
-  const loader = 'auto' as const;
 
   if (paymentStatus === 'empty') {
     return (
@@ -149,9 +146,12 @@ const Checkout = () => {
                   </button>
                 </div>
               ) : clientSecret ? (
-                <Elements options={{ clientSecret, appearance, loader }} stripe={stripePromise}>
+                <CheckoutProvider
+                  stripe={stripePromise}
+                  options={{ clientSecret }}
+                >
                   <StripeCheckoutForm />
-                </Elements>
+                </CheckoutProvider>
               ) : (
                 <div className="flex justify-center items-center h-40">
                   <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-indigo-600"></div>
@@ -184,10 +184,10 @@ const Checkout = () => {
                 <div className="border-b pb-4">
                   <p className="text-gray-600">Subtotal: ${total.toFixed(2)}</p>
                   <p className="text-gray-600">Shipping: $0.00</p>
-                  <p className="text-gray-600">Tax: ${(total * 0.0825).toFixed(2)}</p>
+                  <p className="text-gray-600">Tax: Will be calculated based on your location</p>
                 </div>
                 <div className="font-bold text-lg">
-                  Total: ${(total + (total * 0.0825)).toFixed(2)}
+                  Total: ${total.toFixed(2)} (plus tax)
                 </div>
               </div>
             </div>

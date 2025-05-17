@@ -7,7 +7,6 @@ import art6 from '../images/art6.jpeg';
 import ProductCard from './ProductCard';
 
 
-// Dummy product list
 const products = [
  
   {

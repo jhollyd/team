@@ -17,7 +17,9 @@ app.use(cors());
 // parsing body of json request
 app.use(bodyParser.json());
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
+  apiVersion: '2024-12-18.acacia; custom_checkout_beta=v1',
+});
 
 
 // Calculate the order amount function for Stripe
@@ -26,32 +28,51 @@ const calculateOrderAmount = (items) => {
   // people from directly manipulating the amount on the client
   let total = 0;
   items.forEach((item) => {
-    total += item.amount;
+    total += item.amount * item.quantity; // Multiply amount by quantity
   });
   return total;
 };
 
-// Stripe payment intent endpoint
-app.post("/create-payment-intent", async (req, res) => {
+// Stripe checkout session endpoint
+app.post("/create-checkout-session", async (req, res) => {
   try {
     const { items } = req.body;
 
-    // Create a PaymentIntent with the order amount and currency
-    const paymentIntent = await stripe.paymentIntents.create({
-      amount: calculateOrderAmount(items),
-      currency: "usd",
-      // Enable automatic payment methods
-      automatic_payment_methods: {
+    // Create a Checkout Session
+    const session = await stripe.checkout.sessions.create({
+      mode: 'payment',
+      ui_mode: 'custom',
+      line_items: items.map(item => ({
+        price_data: {
+          currency: 'usd',
+          product_data: {
+            name: `Product ID: ${item.product_id} | Name: ${item.name} | Color: ${item.color}`,
+            metadata: {
+              product_id: item.product_id,
+              color: item.color
+            }
+          },
+          unit_amount: item.amount, // Already in cents
+        },
+        quantity: item.quantity,
+      })),
+      automatic_tax: {
         enabled: true,
+      },
+      return_url: `${req.headers.origin}/checkout_complete`,
+      payment_method_types: ['card'],
+      billing_address_collection: 'required',
+      shipping_address_collection: {
+        allowed_countries: ['US'],
       },
     });
 
     res.send({
-      clientSecret: paymentIntent.client_secret,
+      clientSecret: session.client_secret,
     });
   } catch (error) {
-    console.error('Error creating payment intent:', error);
-    res.status(500).send({ error: 'Failed to create payment intent' });
+    console.error('Error creating checkout session:', error);
+    res.status(500).send({ error: 'Failed to create checkout session' });
   }
 });
 
