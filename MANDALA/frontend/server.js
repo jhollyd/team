@@ -36,12 +36,13 @@ const calculateOrderAmount = (items) => {
 // Stripe checkout session endpoint
 app.post("/create-checkout-session", async (req, res) => {
   try {
-    const { items } = req.body;
+    const { items, customerEmail } = req.body;
 
     // Create a Checkout Session
     const session = await stripe.checkout.sessions.create({
       mode: 'payment',
       ui_mode: 'custom',
+      customer_email: customerEmail,
       line_items: items.map(item => ({
         price_data: {
           currency: 'usd',

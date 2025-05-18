@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { loadStripe } from '@stripe/stripe-js';
 import { CheckoutProvider } from '@stripe/react-stripe-js';
 import { Link } from 'react-router-dom';
+import { useUser } from '@clerk/clerk-react';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 import StripeCheckoutForm from '../components/StripeCheckoutForm';
@@ -25,6 +26,7 @@ interface GroupedCartItem extends CartItem {
 }
 
 const Checkout = () => {
+  const { user } = useUser();
   const [paymentStatus, setPaymentStatus] = useState('loading');
   const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
@@ -76,7 +78,8 @@ const Checkout = () => {
             amount: Math.round(item.price * 100),
             quantity: item.quantity,
             color: item.color
-          }))
+          })),
+          customerEmail: user?.primaryEmailAddress?.emailAddress
         }),
       })
         .then((res) => {

@@ -14,14 +14,20 @@ const StripeCheckoutForm = () => {
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
-    const userEmail = user?.primaryEmailAddress?.emailAddress;
-    if (userEmail) {
-      setEmail(userEmail);
-      checkout.updateEmail(userEmail).then((result) => {
-        if (result.type === 'error') {
-          setError(result.error.message);
-        }
-      });
+    // Only update email if it's not already set by Stripe
+    const stripeEmail = checkout.email;
+    if (!stripeEmail) {
+      const userEmail = user?.primaryEmailAddress?.emailAddress;
+      if (userEmail) {
+        setEmail(userEmail);
+        checkout.updateEmail(userEmail).then((result) => {
+          if (result.type === 'error') {
+            setError(result.error.message);
+          }
+        });
+      }
+    } else {
+      setEmail(stripeEmail);
     }
   }, [user, checkout]);
 
@@ -34,7 +40,7 @@ const StripeCheckoutForm = () => {
       setError(result.error.message);
     }
 
-    setIsLoading(false);
+      setIsLoading(false);
   };
 
   const handleShippingAddressChange = async (event: any) => {
@@ -66,16 +72,16 @@ const StripeCheckoutForm = () => {
           />
         </label>
         {error && <div className="text-red-600 text-sm mt-1">{error}</div>}
-      </div>
+        </div>
 
-      <div className="bg-white p-4 rounded-lg border border-gray-200">
+        <div className="bg-white p-4 rounded-lg border border-gray-200">
         <h3 className="text-lg font-medium text-gray-900 mb-4">Shipping Address</h3>
         <AddressElement 
           options={{ mode: 'shipping' }}
           onChange={handleShippingAddressChange}
         />
-      </div>
-
+        </div>
+        
       <div className="bg-white p-4 rounded-lg border border-gray-200">
         <h3 className="text-lg font-medium text-gray-900 mb-4">Payment</h3>
         <PaymentElement 
@@ -88,19 +94,19 @@ const StripeCheckoutForm = () => {
             }
           }} 
         />
-      </div>
-
-      <button
+          </div>
+        
+        <button 
         disabled={isLoading}
-        className="w-full bg-indigo-600 text-white py-2 px-4 rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 relative disabled:opacity-70 disabled:cursor-not-allowed"
+          className="w-full bg-indigo-600 text-white py-2 px-4 rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 relative disabled:opacity-70 disabled:cursor-not-allowed"
       >
         {isLoading ? (
           <div className="h-5 w-5 border-2 border-white border-t-transparent rounded-full animate-spin mx-auto"></div>
         ) : (
-          `Pay $${(checkout.total.total / 100).toFixed(2)} now`
-        )}
-      </button>
-    </form>
+          `Pay $${(checkout.total.total / 100).toFixed(2)} (plus tax) now`
+          )}
+        </button>
+      </form>
   );
 };
 
