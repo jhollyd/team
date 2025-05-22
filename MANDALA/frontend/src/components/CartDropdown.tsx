@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useUser } from '@clerk/clerk-react';
 import { guestStorage } from '../utils/guestStorage';
@@ -25,6 +25,7 @@ const CartDropdown = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { user } = useUser();
+  const dropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -33,6 +34,22 @@ const CartDropdown = () => {
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+
+    if (isOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isOpen]);
 
   useEffect(() => {
     const fetchCart = async () => {
@@ -103,11 +120,11 @@ const CartDropdown = () => {
         guestStorage.setGuestCart(guestCart);
       }
 
-    setCartItems(newCart);
-    
-    if (location.pathname === '/checkout') {
-      window.location.reload();
-    }
+      setCartItems(newCart);
+      
+      if (location.pathname === '/checkout') {
+        navigate('/checkout', { replace: true });
+      }
     } catch (error) {
       console.error('Error updating cart:', error);
     } finally {
@@ -136,6 +153,10 @@ const CartDropdown = () => {
         item => !(item.productId._id === productId && item.color === color)
       );
       setCartItems(newCart);
+
+      if (location.pathname === '/checkout') {
+        window.location.reload();
+      }
     } catch (error) {
       console.error('Error removing item:', error);
     } finally {
@@ -170,6 +191,10 @@ const CartDropdown = () => {
       }
 
       setCartItems([]);
+
+      if (location.pathname === '/checkout') {
+        window.location.reload();
+      }
     } catch (error) {
       console.error('Error clearing cart:', error);
     } finally {
@@ -206,6 +231,10 @@ const CartDropdown = () => {
           : item
       );
       setCartItems(newCart);
+
+      if (location.pathname === '/checkout') {
+        window.location.reload();
+      }
     } catch (error) {
       console.error('Error updating quantity:', error);
     } finally {
@@ -221,7 +250,7 @@ const CartDropdown = () => {
   const totalItems = cartItems.reduce((sum, item) => sum + item.quantity, 0);
 
   return (
-    <div className="relative">
+    <div className="relative" ref={dropdownRef}>
       <button
         onClick={() => setIsOpen(!isOpen)}
         className={`flex items-center space-x-2 hover:text-blue-200 transition-colors ${
