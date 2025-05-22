@@ -1,27 +1,32 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { useUser } from '@clerk/clerk-react';
+import { guestStorage } from '../utils/guestStorage';
 
-interface CartItem {
-  id: number;
+interface Product {
+  _id: string;
   name: string;
   price: number;
-  color: string;
+  image: string;
+  category: string;
+}
+
+interface CartItem {
+  productId: Product;
   quantity: number;
+  color: string;
 }
 
 const CartDropdown = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
   const [isScrolled, setIsScrolled] = useState(false);
+  const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
+  const { user } = useUser();
 
   useEffect(() => {
-    // Load cart items from localStorage
-    const savedCart = JSON.parse(localStorage.getItem('cart') || '[]');
-    setCartItems(savedCart);
-
-    // Add scroll event listener
     const handleScroll = () => {
       setIsScrolled(window.scrollY > 0);
     };
@@ -29,33 +34,190 @@ const CartDropdown = () => {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  const updateCart = (newCart: CartItem[]) => {
+  useEffect(() => {
+    const fetchCart = async () => {
+      if (user) {
+        try {
+          const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/api/users/${user.id}/cart`);
+          if (!response.ok) throw new Error('Failed to fetch cart');
+          const data = await response.json();
+          setCartItems(data);
+        } catch (error) {
+          console.error('Error fetching cart:', error);
+        }
+      } else {
+        // For guest users, get cart from localStorage
+        const guestCart = guestStorage.getGuestCart();
+        // Fetch product details for each item
+        const itemsWithDetails = await Promise.all(
+          guestCart.map(async (item) => {
+            try {
+              const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/api/products/${item.productId}`);
+              if (!response.ok) throw new Error('Failed to fetch product details');
+              const product = await response.json();
+              return {
+                productId: product,
+                quantity: item.quantity,
+                color: item.color,
+              };
+            } catch (error) {
+              console.error('Error fetching product details:', error);
+              return null;
+            }
+          })
+        );
+        setCartItems(itemsWithDetails.filter((item): item is CartItem => item !== null));
+      }
+    };
+
+    fetchCart();
+  }, [user]);
+
+  const updateCart = async (newCart: CartItem[]) => {
+    setLoading(true);
+    try {
+      if (user) {
+        // For logged-in users, update in database
+        for (const item of newCart) {
+          const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/api/users/${user.id}/cart`, {
+            method: 'PUT',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              productId: item.productId._id,
+              quantity: item.quantity,
+              color: item.color,
+            }),
+          });
+
+          if (!response.ok) throw new Error('Failed to update cart');
+        }
+      } else {
+        // For guest users, update in localStorage
+        const guestCart = newCart.map(item => ({
+          productId: item.productId._id,
+          quantity: item.quantity,
+          color: item.color,
+        }));
+        guestStorage.setGuestCart(guestCart);
+      }
+
     setCartItems(newCart);
-    localStorage.setItem('cart', JSON.stringify(newCart));
     
-    // If we're on the checkout page, refresh it
     if (location.pathname === '/checkout') {
       window.location.reload();
     }
+    } catch (error) {
+      console.error('Error updating cart:', error);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const removeItem = (index: number) => {
-    const newCart = cartItems.filter((_, i) => i !== index);
-    updateCart(newCart);
+  const removeItem = async (productId: string, color: string) => {
+    setLoading(true);
+    try {
+      if (user) {
+        const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/api/users/${user.id}/cart`, {
+          method: 'DELETE',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ productId, color }),
+        });
+
+        if (!response.ok) throw new Error('Failed to remove item');
+      } else {
+        guestStorage.removeFromGuestCart(productId, color);
+      }
+      
+      const newCart = cartItems.filter(
+        item => !(item.productId._id === productId && item.color === color)
+      );
+      setCartItems(newCart);
+    } catch (error) {
+      console.error('Error removing item:', error);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const clearCart = () => {
-    updateCart([]);
+  const clearCart = async () => {
+    setLoading(true);
+    try {
+      if (user) {
+        // For logged-in users, remove each item from database
+        for (const item of cartItems) {
+          if (!item.productId) continue;
+          
+          const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/api/users/${user.id}/cart`, {
+            method: 'DELETE',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              productId: item.productId._id,
+              color: item.color,
+            }),
+          });
+
+          if (!response.ok) throw new Error('Failed to clear cart');
+        }
+      } else {
+        // For guest users, clear localStorage
+        guestStorage.clearGuestCart();
+      }
+
+      setCartItems([]);
+    } catch (error) {
+      console.error('Error clearing cart:', error);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const updateQuantity = (index: number, newQuantity: number) => {
+  const updateQuantity = async (productId: string, color: string, newQuantity: number) => {
     if (newQuantity < 1) return;
-    const newCart = [...cartItems];
-    newCart[index].quantity = newQuantity;
-    updateCart(newCart);
+    
+    setLoading(true);
+    try {
+      if (user) {
+        const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/api/users/${user.id}/cart`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            productId,
+            quantity: newQuantity,
+            color,
+          }),
+        });
+
+        if (!response.ok) throw new Error('Failed to update quantity');
+      } else {
+        guestStorage.updateGuestCartItem(productId, color, newQuantity);
+      }
+
+      const newCart = cartItems.map(item =>
+        item.productId._id === productId && item.color === color
+          ? { ...item, quantity: newQuantity }
+          : item
+      );
+      setCartItems(newCart);
+    } catch (error) {
+      console.error('Error updating quantity:', error);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const total = cartItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+  const total = cartItems.reduce((sum, item) => {
+    if (!item.productId) return sum;
+    return sum + (item.productId.price * item.quantity);
+  }, 0);
+
   const totalItems = cartItems.reduce((sum, item) => sum + item.quantity, 0);
 
   return (
@@ -80,7 +242,8 @@ const CartDropdown = () => {
               {cartItems.length > 0 && (
                 <button
                   onClick={clearCart}
-                  className="text-sm text-red-600 hover:text-red-800"
+                  disabled={loading}
+                  className="text-sm text-red-600 hover:text-red-800 disabled:opacity-50"
                 >
                   Clear All
                 </button>
@@ -92,31 +255,35 @@ const CartDropdown = () => {
             ) : (
               <>
                 <div className="max-h-96 overflow-y-auto">
-                  {cartItems.map((item, index) => (
-                    <div key={index} className="flex items-center justify-between py-3 border-b">
+                  {cartItems.map((item) => (
+                    item.productId && (
+                      <div key={`${item.productId._id}-${item.color}`} className="flex items-center justify-between py-3 border-b">
                       <div className="flex-1">
-                        <h4 className="font-medium">{item.name}</h4>
+                          <h4 className="font-medium">{item.productId.name}</h4>
                         <p className="text-sm text-gray-600">Color: {item.color}</p>
-                        <p className="text-sm text-gray-600">${item.price.toFixed(2)}</p>
+                          <p className="text-sm text-gray-600">${item.productId.price.toFixed(2)}</p>
                       </div>
                       
                       <div className="flex items-center space-x-2">
                         <button
-                          onClick={() => updateQuantity(index, item.quantity - 1)}
-                          className="px-2 py-1 border rounded hover:bg-gray-100"
+                            onClick={() => updateQuantity(item.productId._id, item.color, item.quantity - 1)}
+                            disabled={loading}
+                            className="px-2 py-1 border rounded hover:bg-gray-100 disabled:opacity-50"
                         >
                           -
                         </button>
                         <span className="w-8 text-center">{item.quantity}</span>
                         <button
-                          onClick={() => updateQuantity(index, item.quantity + 1)}
-                          className="px-2 py-1 border rounded hover:bg-gray-100"
+                            onClick={() => updateQuantity(item.productId._id, item.color, item.quantity + 1)}
+                            disabled={loading}
+                            className="px-2 py-1 border rounded hover:bg-gray-100 disabled:opacity-50"
                         >
                           +
                         </button>
                         <button
-                          onClick={() => removeItem(index)}
-                          className="ml-2 text-red-600 hover:text-red-800"
+                            onClick={() => removeItem(item.productId._id, item.color)}
+                            disabled={loading}
+                            className="ml-2 text-red-600 hover:text-red-800 disabled:opacity-50"
                         >
                           <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
                             <path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
@@ -124,6 +291,7 @@ const CartDropdown = () => {
                         </button>
                       </div>
                     </div>
+                    )
                   ))}
                 </div>
 
@@ -138,7 +306,8 @@ const CartDropdown = () => {
                       setIsOpen(false);
                       navigate('/checkout');
                     }}
-                    className="w-full bg-gray-900 text-white py-2 px-4 rounded hover:bg-gray-700"
+                    disabled={loading}
+                    className="w-full bg-gray-900 text-white py-2 px-4 rounded hover:bg-gray-700 disabled:opacity-50"
                   >
                     Go to Checkout
                   </button>

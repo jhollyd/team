@@ -1,7 +1,9 @@
 import { useState } from 'react';
+import { useUser } from '@clerk/clerk-react';
+import { guestStorage } from '../utils/guestStorage';
 
-interface product {
-  id: number;
+interface Product {
+  _id: string;
   name: string;
   price: number;
   image: string;
@@ -9,56 +11,54 @@ interface product {
 }
 
 interface ProductPageProps {
-  product: product;
-}
-
-interface CartItem {
-  id: number;
-  name: string;
-  price: number;
-  color: string;
-  quantity: number;
+  product: Product;
 }
 
 const ProductPage = ({ product }: ProductPageProps) => {
   const [selectedColor, setSelectedColor] = useState('Black');
   const [showSuccess, setShowSuccess] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const { user } = useUser();
 
   const handleColorChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     setSelectedColor(e.target.value);
   };
 
-  const handleAddToCart = () => {
-    // Get existing cart
-    const existingCart: CartItem[] = JSON.parse(localStorage.getItem('cart') || '[]');
-    
-    // Check if item with same ID and color already exists
-    const existingItemIndex = existingCart.findIndex(
-      item => item.id === product.id && item.color === selectedColor
-    );
+  const handleAddToCart = async () => {
+    setLoading(true);
+    try {
+      if (user) {
+        const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/api/users/${user.id}/cart`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            productId: product._id,
+            quantity: 1,
+            color: selectedColor,
+          }),
+        });
 
-    if (existingItemIndex !== -1) {
-      // If item exists, increase quantity
-      existingCart[existingItemIndex].quantity += 1;
+        if (!response.ok) throw new Error('Failed to add item to cart');
     } else {
-      // If item doesn't exist, add new item
-      existingCart.push({
-        id: product.id,
-        name: product.name,
-        price: product.price,
+        // For guest users, add to localStorage
+        guestStorage.addToGuestCart({
+          productId: product._id,
+          quantity: 1,
         color: selectedColor,
-        quantity: 1
       });
     }
     
-    // Update cart in localStorage
-    localStorage.setItem('cart', JSON.stringify(existingCart));
-    
-    // Show success message and refresh page
     setShowSuccess(true);
     setTimeout(() => {
       window.location.reload();
-    }, 100); // Wait 1 second to show the success message before refreshing
+      }, 1000);
+    } catch (error) {
+      console.error('Error adding to cart:', error);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -97,9 +97,10 @@ const ProductPage = ({ product }: ProductPageProps) => {
 
           <button 
             onClick={handleAddToCart}
-            className="bg-gray-900 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded w-full"
+            disabled={loading}
+            className="bg-gray-900 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded w-full disabled:opacity-50"
           >
-            Add to Cart
+            {loading ? 'Adding...' : 'Add to Cart'}
           </button>
 
           {showSuccess && (

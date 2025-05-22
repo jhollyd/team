@@ -5,10 +5,12 @@ import {
   useCheckout,
 } from '@stripe/react-stripe-js';
 import { useUser } from '@clerk/clerk-react';
+import { useNavigate } from 'react-router-dom';
 
 const StripeCheckoutForm = () => {
   const { user } = useUser();
   const checkout = useCheckout();
+  const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -34,13 +36,32 @@ const StripeCheckoutForm = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
+    setError(null);
 
-    const result = await checkout.confirm();
-    if (result.type === 'error') {
-      setError(result.error.message);
-    }
+    try {
+      const result = await checkout.confirm();
+      console.log('Checkout result:', result); // Debug log
 
+      if (result.type === 'error') {
+        console.error('Payment error:', result.error);
+        setError(result.error.message);
+        setIsLoading(false);
+      } else if (result.type === 'success') {
+        console.log('Payment successful:', result.success);
+        // Only redirect on successful payment
+        navigate('/checkout_complete', { 
+          state: { 
+            status: 'success',
+            paymentIntentId: result.success.id
+          },
+          replace: true
+        });
+      }
+    } catch (err) {
+      console.error('Checkout error:', err);
+      setError('An unexpected error occurred. Please try again.');
       setIsLoading(false);
+    }
   };
 
   const handleShippingAddressChange = async (event: any) => {
@@ -71,16 +92,20 @@ const StripeCheckoutForm = () => {
             className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
           />
         </label>
-        {error && <div className="text-red-600 text-sm mt-1">{error}</div>}
-        </div>
+        {error && (
+          <div className="mt-2 p-3 bg-red-50 border border-red-200 rounded-md">
+            <p className="text-sm text-red-600">{error}</p>
+          </div>
+        )}
+      </div>
 
-        <div className="bg-white p-4 rounded-lg border border-gray-200">
+      <div className="bg-white p-4 rounded-lg border border-gray-200">
         <h3 className="text-lg font-medium text-gray-900 mb-4">Shipping Address</h3>
         <AddressElement 
           options={{ mode: 'shipping' }}
           onChange={handleShippingAddressChange}
         />
-        </div>
+      </div>
         
       <div className="bg-white p-4 rounded-lg border border-gray-200">
         <h3 className="text-lg font-medium text-gray-900 mb-4">Payment</h3>
@@ -94,19 +119,19 @@ const StripeCheckoutForm = () => {
             }
           }} 
         />
-          </div>
+      </div>
         
-        <button 
+      <button 
         disabled={isLoading}
-          className="w-full bg-indigo-600 text-white py-2 px-4 rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 relative disabled:opacity-70 disabled:cursor-not-allowed"
+        className="w-full bg-indigo-600 text-white py-2 px-4 rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 relative disabled:opacity-70 disabled:cursor-not-allowed"
       >
         {isLoading ? (
           <div className="h-5 w-5 border-2 border-white border-t-transparent rounded-full animate-spin mx-auto"></div>
         ) : (
           `Pay $${(checkout.total.total / 100).toFixed(2)} (plus tax) now`
-          )}
-        </button>
-      </form>
+        )}
+      </button>
+    </form>
   );
 };
 
