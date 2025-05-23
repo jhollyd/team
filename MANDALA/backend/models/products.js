@@ -14,11 +14,21 @@ const productSchema = new mongoose.Schema({
     type: String,
     required: true
   },
-  category: {
+  tags: [{
     type: String,
     required: true
+  }],
+  isActive: {
+    type: Boolean,
+    default: true
   }
 }, { timestamps: true });
+
+// Ensure no duplicate tags
+productSchema.pre('save', function(next) {
+  this.tags = [...new Set(this.tags)];
+  next();
+});
 
 const Product = mongoose.model('Product', productSchema);
 

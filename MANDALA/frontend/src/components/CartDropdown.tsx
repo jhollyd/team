@@ -8,7 +8,8 @@ interface Product {
   name: string;
   price: number;
   image: string;
-  category: string;
+  tags: string[];
+  isActive: boolean;
 }
 
 interface CartItem {

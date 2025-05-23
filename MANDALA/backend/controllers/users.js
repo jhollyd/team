@@ -4,7 +4,7 @@ const Product = require('../models/products');
 // Get or create user
 exports.getOrCreateUser = async (req, res) => {
   try {
-    const { clerkId, email } = req.body;
+    const { clerkId, email, role } = req.body;
 
     if (!clerkId || !email) {
       return res.status(400).json({ message: 'clerkId and email are required' });
@@ -13,15 +13,23 @@ exports.getOrCreateUser = async (req, res) => {
     let user = await User.findOne({ clerkId });
 
     if (!user) {
+      // For new users, set the default role
       user = new User({
         clerkId,
         email,
+        role: role || 'customer',
         cart: [],
         wishlist: []
       });
       await user.save();
       console.log('New user created:', user._id);
     } else {
+      // For existing users, only update email if it has changed
+      if (user.email !== email) {
+        user.email = email;
+        await user.save();
+        console.log('User email updated:', user._id);
+      }
       console.log('Existing user found:', user._id);
     }
 
@@ -184,6 +192,58 @@ exports.removeFromWishlist = async (req, res) => {
     await user.populate('wishlist');
     res.json(user.wishlist);
   } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// Update user role (admin only)
+exports.updateUserRole = async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const { role } = req.body;
+
+    // Validate role
+    if (!['customer', 'admin'].includes(role)) {
+      return res.status(400).json({ message: 'Invalid role. Must be either "customer" or "admin"' });
+    }
+
+    const user = await User.findByIdAndUpdate(
+      userId,
+      { role },
+      { new: true }
+    );
+
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    res.json({
+      message: 'User role updated successfully',
+      user: {
+        id: user._id,
+        email: user.email,
+        role: user.role
+      }
+    });
+  } catch (error) {
+    console.error('Error updating user role:', error);
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// Get user by Clerk ID
+exports.getUserByClerkId = async (req, res) => {
+  try {
+    const { clerkId } = req.params;
+    const user = await User.findOne({ clerkId });
+    
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    res.json(user);
+  } catch (error) {
+    console.error('Error getting user:', error);
     res.status(500).json({ message: error.message });
   }
 }; 

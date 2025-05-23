@@ -50,6 +50,7 @@ app.options('*', cors());
 // Routers
 app.use('/api/products', require('./routes/products'));
 app.use('/api/users', require('./routes/users'));
+app.use('/api/tags', require('./routes/tags'));
 app.use('/api/payment', require('./routes/payment'));
 app.use('/api/email', require('./routes/email'));
 

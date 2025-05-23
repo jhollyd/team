@@ -1,31 +1,45 @@
 import { useState, useEffect } from 'react';
 import ProductCard from './ProductCard';
 
+interface Tag {
+  _id: string;
+  name: string;
+}
+
 interface Product {
   _id: string;
   name: string;
   price: number;
   image: string;
-  category: string;
+  tags: string[];
+  isActive: boolean;
 }
 
-const categories = ['All', 'Hand Drawn', 'Digital', 'Custom'];
-
 const Gallery = () => {
-  const [selectedCategory, setSelectedCategory] = useState('All');
+  const [selectedTag, setSelectedTag] = useState('All');
   const [products, setProducts] = useState<Product[]>([]);
+  const [tags, setTags] = useState<Tag[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const fetchProducts = async () => {
+    const fetchData = async () => {
       try {
-        const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/api/products`);
-        if (!response.ok) {
+        // Fetch products
+        const productsResponse = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/api/products`);
+        if (!productsResponse.ok) {
           throw new Error('Failed to fetch products');
         }
-        const data = await response.json();
-        setProducts(data);
+        const productsData = await productsResponse.json();
+        setProducts(productsData);
+
+        // Fetch tags
+        const tagsResponse = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/api/tags`);
+        if (!tagsResponse.ok) {
+          throw new Error('Failed to fetch tags');
+        }
+        const tagsData = await tagsResponse.json();
+        setTags(tagsData);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'An error occurred');
       } finally {
@@ -33,12 +47,12 @@ const Gallery = () => {
       }
     };
 
-    fetchProducts();
+    fetchData();
   }, []);
 
-  const filtered = selectedCategory === 'All'
-    ? products
-    : products.filter(p => p.category === selectedCategory);
+  const filtered = selectedTag === 'All'
+    ? products.filter(p => p.isActive)
+    : products.filter(p => p.isActive && p.tags.includes(selectedTag));
 
   if (loading) {
     return (
@@ -67,13 +81,14 @@ const Gallery = () => {
         {/* Filter Dropdown */}
         <div className="flex justify-end mb-8">
           <select
-            value={selectedCategory}
-            onChange={(e) => setSelectedCategory(e.target.value)}
+            value={selectedTag}
+            onChange={(e) => setSelectedTag(e.target.value)}
             className="border border-gray-300 rounded px-4 py-2"
           >
-            {categories.map((c) => (
-              <option key={c} value={c}>
-                {c}
+            <option value="All">All Tags</option>
+            {tags.map((tag) => (
+              <option key={tag._id} value={tag.name}>
+                {tag.name}
               </option>
             ))}
           </select>

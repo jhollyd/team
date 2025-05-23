@@ -7,7 +7,8 @@ interface Product {
   name: string;
   price: number;
   image: string;
-  category: string;
+  tags: string[];
+  isActive: boolean;
 }
 
 interface ProductPageProps {
@@ -41,18 +42,18 @@ const ProductPage = ({ product }: ProductPageProps) => {
         });
 
         if (!response.ok) throw new Error('Failed to add item to cart');
-    } else {
+      } else {
         // For guest users, add to localStorage
         guestStorage.addToGuestCart({
           productId: product._id,
           quantity: 1,
-        color: selectedColor,
-      });
-    }
-    
-    setShowSuccess(true);
-    setTimeout(() => {
-      window.location.reload();
+          color: selectedColor,
+        });
+      }
+      
+      setShowSuccess(true);
+      setTimeout(() => {
+        window.location.reload();
       }, 1000);
     } catch (error) {
       console.error('Error adding to cart:', error);
@@ -74,7 +75,17 @@ const ProductPage = ({ product }: ProductPageProps) => {
         <div className="w-full lg:w-1/3 xl:w-1/4">
           <h1 className="text-3xl font-bold mb-2">{product.name}</h1>
           <p className="text-lg font-medium mb-4">${product.price.toFixed(2)}</p>
-          <p className="text-lg font-medium mb-4">Category: {product.category}</p>
+          
+          <div className="flex flex-wrap gap-2 mb-4">
+            {product.tags.map((tag) => (
+              <span
+                key={tag}
+                className="px-3 py-1 text-sm bg-gray-100 text-gray-800 rounded-full"
+              >
+                {tag}
+              </span>
+            ))}
+          </div>
 
           {/* Color customization */}
           <div className="mb-6">

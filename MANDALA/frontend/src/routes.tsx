@@ -5,6 +5,7 @@ import Checkout from './pages/Checkout';
 import CheckoutCompletePage from "./pages/CheckoutCompletePage";
 import Account from "./pages/Account";
 import ProductPages from "./pages/productPages";
+import AdminPanel from './components/AdminPanel';
 
 const AppRoutes = () => {
   return (
@@ -15,6 +16,7 @@ const AppRoutes = () => {
       <Route path="/checkout_complete" element={<CheckoutCompletePage />} />
       <Route path="/account" element={<Account />} />
       <Route path="/products/:id" element={<ProductPages />} />
+      <Route path="/admin" element={<AdminPanel />} />
     </Routes>
   );
 };

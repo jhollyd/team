@@ -19,7 +19,7 @@ const AuthHandler = () => {
             },
             body: JSON.stringify({
               clerkId: user.id,
-              email: user.primaryEmailAddress?.emailAddress,
+              email: user.primaryEmailAddress?.emailAddress
             }),
           });
 

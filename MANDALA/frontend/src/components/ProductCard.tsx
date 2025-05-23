@@ -6,10 +6,11 @@ import { guestStorage } from '../utils/guestStorage';
 
 interface Product {
   _id: string;
-    name: string;
-    price: number;
-    image: string;
-    category: string;
+  name: string;
+  price: number;
+  image: string;
+  tags: string[];
+  isActive: boolean;
 }
 
 interface ProductCardProps {
@@ -66,7 +67,7 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
           guestStorage.addToGuestWishlist(product._id);
         }
       }
-    setInWishlist(!inWishlist);
+      setInWishlist(!inWishlist);
     } catch (error) {
       console.error('Error updating wishlist:', error);
     } finally {
@@ -77,27 +78,37 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
   return (
     <Link to={`/products/${product._id}`} state={{ product }}>
       <div className="border rounded-lg shadow hover:shadow-md transition overflow-hidden">
-            <img
-                src={product.image}
-                alt={product.name}
-                className="w-full h-60 object-cover"
-            />
-            <div className="p-4">
-                <h2 className="text-lg font-semibold text-gray-800">
-                    {product.name}
-                </h2>
-                <div className="flex justify-between items-center">
-                    <p className="text-blue-600 font-bold mt-1">${product.price.toFixed(2)}</p>
+        <img
+          src={product.image}
+          alt={product.name}
+          className="w-full h-60 object-cover"
+        />
+        <div className="p-4">
+          <h2 className="text-lg font-semibold text-gray-800">
+            {product.name}
+          </h2>
+          <div className="flex flex-wrap gap-1 mt-2">
+            {product.tags.map((tag) => (
+              <span
+                key={tag}
+                className="px-2 py-1 text-xs bg-gray-100 text-gray-800 rounded-full"
+              >
+                {tag}
+              </span>
+            ))}
+          </div>
+          <div className="flex justify-between items-center mt-2">
+            <p className="text-blue-600 font-bold">${product.price.toFixed(2)}</p>
             <button 
               className="text-red-600 py-2 px-4 disabled:opacity-50"
               onClick={toggleWishlist}
               disabled={loading}
             >
               <Heart fill={inWishlist ? 'red' : 'none'} />
-                    </button>
-                </div>
-            </div>
+            </button>
+          </div>
         </div>
+      </div>
     </Link>
   );
 };
