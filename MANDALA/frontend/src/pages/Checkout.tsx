@@ -229,19 +229,28 @@ const Checkout = () => {
               <div className="space-y-4">
                 {groupedItems.map((item, index) => (
                   <div key={index} className="border-b pb-4">
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <h4 className="font-medium">{item.productId.name}</h4>
-                        <p className="text-sm text-gray-600">Total Quantity: {item.totalQuantity}</p>
-                        {item.variants.map((variant, vIndex) => (
-                          <p key={vIndex} className="text-sm text-gray-600">
-                            {variant.color}: {variant.quantity}
+                    <div className="flex gap-4">
+                      <img
+                        src={item.productId.image}
+                        alt={item.productId.name}
+                        className="w-20 h-20 object-cover rounded"
+                      />
+                      <div className="flex-1">
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <h4 className="font-medium">{item.productId.name}</h4>
+                            <p className="text-sm text-gray-600">Total Quantity: {item.totalQuantity}</p>
+                            {item.variants.map((variant, vIndex) => (
+                              <p key={vIndex} className="text-sm text-gray-600">
+                                {variant.color}: {variant.quantity}
+                              </p>
+                            ))}
+                          </div>
+                          <p className="text-sm text-gray-600">
+                            ${(item.productId.price * item.totalQuantity).toFixed(2)}
                           </p>
-                        ))}
+                        </div>
                       </div>
-                      <p className="text-sm text-gray-600">
-                        ${(item.productId.price * item.totalQuantity).toFixed(2)}
-                      </p>
                     </div>
                   </div>
                 ))}
