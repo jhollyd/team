@@ -15,24 +15,29 @@ const router = express.Router();
 // Get user by Clerk ID (must be before other routes to prevent conflicts)
 router.get('/clerk/:clerkId', usersController.getUserByClerkId);
 
-// User role management (admin only)
-router.patch('/:clerkId/role', isAdmin, usersController.updateUserRole);
+// Admin routes
+router.get('/', isAdmin, usersController.getAllUsers);
+router.patch('/:userId/role', isAdmin, usersController.updateUserRole);
+router.delete('/:userId', isAdmin, usersController.deleteUser);
+
+// User operations
+router.post('/get-or-create', usersController.getOrCreateUser);
 
 // Cart operations
-router.get('/:clerkId/cart', usersController.getCart);
-router.post('/:clerkId/cart', usersController.addToCart);
-router.put('/:clerkId/cart', usersController.updateCartItemQuantity);
-router.delete('/:clerkId/cart', usersController.removeFromCart);
+router.get('/:userId/cart', usersController.getCart);
+router.post('/:userId/cart', usersController.addToCart);
+router.put('/:userId/cart', usersController.updateCartItemQuantity);
+router.delete('/:userId/cart', usersController.removeFromCart);
+router.delete('/:userId/cart/clear', usersController.clearCart);
 
 // Wishlist operations
-router.get('/:clerkId/wishlist', usersController.getWishlist);
-router.post('/:clerkId/wishlist', usersController.addToWishlist);
-router.delete('/:clerkId/wishlist', usersController.removeFromWishlist);
+router.get('/:userId/wishlist', usersController.getWishlist);
+router.post('/:userId/wishlist', usersController.addToWishlist);
+router.delete('/:userId/wishlist', usersController.removeFromWishlist);
+router.delete('/:userId/wishlist/clear', usersController.clearWishlist);
 
 // Other user operations
-router.get('/', getAllUsers);
 router.post('/', googleSignIn);
-router.post('/get-or-create', usersController.getOrCreateUser);
 router.get('/:id', getUserById);
 router.delete('/:id', deleteUser);
 router.put('/:id', updateUser);

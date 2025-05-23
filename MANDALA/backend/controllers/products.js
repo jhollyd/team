@@ -1,4 +1,6 @@
 const Product = require('../models/products');
+const User = require('../models/users');
+const { removeProductFromAllUsers } = require('./users');
 
 // Get all products (filtered by isActive for public access)
 exports.getAllProducts = async (req, res) => {
@@ -51,26 +53,49 @@ exports.createProduct = async (req, res) => {
 // Update product
 exports.updateProduct = async (req, res) => {
   try {
-    const product = await Product.findById(req.params.id);
+    const { id } = req.params;
+    const updates = req.body;
+    const product = await Product.findById(id);
+
     if (!product) {
       return res.status(404).json({ message: 'Product not found' });
     }
 
-    Object.assign(product, req.body);
-    const updatedProduct = await product.save();
+    // If the product is being delisted (isActive changing from true to false)
+    if (product.isActive && updates.isActive === false) {
+      // Remove product from all users' carts and wishlists
+      await removeProductFromAllUsers(id);
+    }
+
+    const updatedProduct = await Product.findByIdAndUpdate(
+      id,
+      updates,
+      { new: true }
+    );
+
     res.json(updatedProduct);
   } catch (error) {
-    res.status(400).json({ message: error.message });
+    console.error('Error updating product:', error);
+    res.status(500).json({ message: error.message });
   }
 };
 
 // Delete product
 exports.deleteProduct = async (req, res) => {
   try {
-    const product = await Product.findByIdAndDelete(req.params.id);
+    const { id } = req.params;
+    const product = await Product.findById(id);
+
     if (!product) {
       return res.status(404).json({ message: 'Product not found' });
     }
+
+    // Remove product from all users' carts and wishlists
+    await removeProductFromAllUsers(id);
+
+    // Delete the product
+    await Product.findByIdAndDelete(id);
+
     res.json({ message: 'Product deleted successfully' });
   } catch (error) {
     console.error('Error deleting product:', error);

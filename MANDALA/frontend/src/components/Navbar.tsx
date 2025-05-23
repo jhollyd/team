@@ -122,7 +122,7 @@ const Navbar = () => {
                     isScrolled ? 'text-black' : 'text-white'
                   }`}
                 >
-                  Admin Panel
+                  Admin Dashboard
                 </Link>
               )}
 

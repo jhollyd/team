@@ -26,7 +26,13 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
     const checkWishlistStatus = async () => {
       if (user) {
         try {
-          const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/api/users/${user.id}/wishlist`);
+          // First get the user's MongoDB ID
+          const userResponse = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/api/users/clerk/${user.id}`);
+          if (!userResponse.ok) throw new Error('Failed to fetch user data');
+          const userData = await userResponse.json();
+          
+          // Then fetch the wishlist using MongoDB ID
+          const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/api/users/${userData._id}/wishlist`);
           if (!response.ok) throw new Error('Failed to fetch wishlist');
           const wishlist = await response.json();
           setInWishlist(wishlist.some((item: Product) => item._id === product._id));
@@ -49,8 +55,13 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
     setLoading(true);
     try {
       if (user) {
+        // Get user's MongoDB ID
+        const userResponse = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/api/users/clerk/${user.id}`);
+        if (!userResponse.ok) throw new Error('Failed to fetch user data');
+        const userData = await userResponse.json();
+
         const method = inWishlist ? 'DELETE' : 'POST';
-        const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/api/users/${user.id}/wishlist`, {
+        const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/api/users/${userData._id}/wishlist`, {
           method,
           headers: {
             'Content-Type': 'application/json',

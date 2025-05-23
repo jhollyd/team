@@ -29,7 +29,12 @@ const ProductPage = ({ product }: ProductPageProps) => {
     setLoading(true);
     try {
       if (user) {
-        const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/api/users/${user.id}/cart`, {
+        // Get user's MongoDB ID
+        const userResponse = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/api/users/clerk/${user.id}`);
+        if (!userResponse.ok) throw new Error('Failed to fetch user data');
+        const userData = await userResponse.json();
+
+        const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/api/users/${userData._id}/cart`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -54,7 +59,7 @@ const ProductPage = ({ product }: ProductPageProps) => {
       setShowSuccess(true);
       setTimeout(() => {
         window.location.reload();
-      }, 1000);
+      }, 200);
     } catch (error) {
       console.error('Error adding to cart:', error);
     } finally {

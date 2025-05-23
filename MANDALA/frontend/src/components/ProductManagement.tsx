@@ -17,7 +17,7 @@ interface Product {
   isActive: boolean;
 }
 
-const AdminPanel = () => {
+const ProductManagement = () => {
   const [products, setProducts] = useState<Product[]>([]);
   const [tags, setTags] = useState<Tag[]>([]);
   const [loading, setLoading] = useState(true);
@@ -209,7 +209,7 @@ const AdminPanel = () => {
   };
 
   const handleDelete = async (productId: string) => {
-    if (!window.confirm('Are you sure you want to delete this product?')) return;
+    if (!window.confirm('Are you sure you want to delete this product? This will remove it from all users\' carts and wishlists.')) return;
 
     try {
       const response = await fetch(
@@ -235,6 +235,37 @@ const AdminPanel = () => {
     }
   };
 
+  const handleToggleActive = async (product: Product) => {
+    if (!window.confirm(`Are you sure you want to ${product.isActive ? 'delist' : 'activate'} this product? This will ${product.isActive ? 'remove it from' : 'make it available in'} all users' carts and wishlists.`)) return;
+
+    try {
+      const response = await fetch(
+        `${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/api/products/${product._id}`,
+        {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-clerk-id': user?.id || ''
+          },
+          body: JSON.stringify({
+            ...product,
+            isActive: !product.isActive
+          })
+        }
+      );
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to update product status');
+      }
+      
+      await fetchProducts();
+    } catch (error) {
+      setError(error instanceof Error ? error.message : 'Failed to update product status');
+      console.error('Error updating product status:', error);
+    }
+  };
+
   const resetForm = () => {
     setEditingProduct(null);
     setFormData({
@@ -253,9 +284,17 @@ const AdminPanel = () => {
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
       <Navbar />
-      <main className="flex-grow flex flex-col pt-20">
+      <div className="flex-grow flex flex-col pt-20">
         <div className="container mx-auto px-4">
-          <h1 className="text-3xl font-bold mb-8">Admin Panel</h1>
+          <div className="flex justify-between items-center mb-8">
+            <h1 className="text-3xl font-bold">Product Management</h1>
+            <button
+              onClick={() => navigate('/admin')}
+              className="bg-gray-500 text-white px-4 py-2 rounded-md hover:bg-gray-600"
+            >
+              Back to Dashboard
+            </button>
+          </div>
           
           {/* Product Form */}
           <div className="bg-white rounded-lg shadow-md p-6 mb-8">
@@ -484,6 +523,12 @@ const AdminPanel = () => {
                         }`}>
                           {product.isActive ? 'Active' : 'Inactive'}
                         </span>
+                        <button
+                          onClick={() => handleToggleActive(product)}
+                          className="ml-2 text-sm text-blue-600 hover:text-blue-900"
+                        >
+                          {product.isActive ? 'Delist' : 'Activate'}
+                        </button>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <button
@@ -506,9 +551,9 @@ const AdminPanel = () => {
             </div>
           </div>
         </div>
-      </main>
+      </div>
     </div>
   );
 };
 
-export default AdminPanel; 
+export default ProductManagement; 

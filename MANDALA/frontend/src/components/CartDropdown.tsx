@@ -56,7 +56,13 @@ const CartDropdown = () => {
     const fetchCart = async () => {
       if (user) {
         try {
-          const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/api/users/${user.id}/cart`);
+          // First get the user's MongoDB ID
+          const userResponse = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/api/users/clerk/${user.id}`);
+          if (!userResponse.ok) throw new Error('Failed to fetch user data');
+          const userData = await userResponse.json();
+          
+          // Then fetch the cart using MongoDB ID
+          const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/api/users/${userData._id}/cart`);
           if (!response.ok) throw new Error('Failed to fetch cart');
           const data = await response.json();
           setCartItems(data);
@@ -95,9 +101,14 @@ const CartDropdown = () => {
     setLoading(true);
     try {
       if (user) {
+        // Get user's MongoDB ID
+        const userResponse = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/api/users/clerk/${user.id}`);
+        if (!userResponse.ok) throw new Error('Failed to fetch user data');
+        const userData = await userResponse.json();
+
         // For logged-in users, update in database
         for (const item of newCart) {
-          const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/api/users/${user.id}/cart`, {
+          const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/api/users/${userData._id}/cart`, {
             method: 'PUT',
             headers: {
               'Content-Type': 'application/json',
@@ -137,7 +148,12 @@ const CartDropdown = () => {
     setLoading(true);
     try {
       if (user) {
-        const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/api/users/${user.id}/cart`, {
+        // Get user's MongoDB ID
+        const userResponse = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/api/users/clerk/${user.id}`);
+        if (!userResponse.ok) throw new Error('Failed to fetch user data');
+        const userData = await userResponse.json();
+
+        const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/api/users/${userData._id}/cart`, {
           method: 'DELETE',
           headers: {
             'Content-Type': 'application/json',
@@ -169,11 +185,16 @@ const CartDropdown = () => {
     setLoading(true);
     try {
       if (user) {
+        // Get user's MongoDB ID
+        const userResponse = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/api/users/clerk/${user.id}`);
+        if (!userResponse.ok) throw new Error('Failed to fetch user data');
+        const userData = await userResponse.json();
+
         // For logged-in users, remove each item from database
         for (const item of cartItems) {
           if (!item.productId) continue;
           
-          const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/api/users/${user.id}/cart`, {
+          const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/api/users/${userData._id}/cart`, {
             method: 'DELETE',
             headers: {
               'Content-Type': 'application/json',
@@ -209,7 +230,12 @@ const CartDropdown = () => {
     setLoading(true);
     try {
       if (user) {
-        const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/api/users/${user.id}/cart`, {
+        // Get user's MongoDB ID
+        const userResponse = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/api/users/clerk/${user.id}`);
+        if (!userResponse.ok) throw new Error('Failed to fetch user data');
+        const userData = await userResponse.json();
+
+        const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/api/users/${userData._id}/cart`, {
           method: 'PUT',
           headers: {
             'Content-Type': 'application/json',
