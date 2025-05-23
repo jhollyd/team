@@ -17,17 +17,15 @@ const AuthHandler = () => {
             headers: {
               'Content-Type': 'application/json',
             },
-            body: JSON.stringify({
+            body: JSON.stringify({ 
               clerkId: user.id,
-              email: user.primaryEmailAddress?.emailAddress
+              email: user.primaryEmailAddress?.emailAddress 
             }),
           });
 
           if (!response.ok) {
-            throw new Error('Failed to create user');
+            throw new Error('Failed to create/update user record');
           }
-
-          console.log('User record created/updated successfully');
 
           // Merge guest data with user data
           await guestStorage.mergeGuestDataWithUser(user.id);

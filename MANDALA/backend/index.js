@@ -9,23 +9,14 @@ const cors = require('cors');
 require('dotenv').config();
 
 // Connect to MongoDB
-mongoose.connect(process.env.MONGODB_URL, {
-  useNewUrlParser: true,
-  useUnifiedTopology: true,
-})
-.then(() => {
-  console.log('Connected to MongoDB');
-  console.log('Database URL:', process.env.MONGODB_URL.split('@')[1]); // Log the database URL without credentials
-})
-.catch((err) => {
-  console.error('MongoDB connection error:', err);
-  console.error('Error details:', {
-    name: err.name,
-    message: err.message,
-    code: err.code,
-    codeName: err.codeName
+mongoose.connect(process.env.MONGODB_URL)
+  .then(() => {
+    console.log('Connected to MongoDB');
+  })
+  .catch(err => {
+    console.error('MongoDB connection error:', err);
+    process.exit(1);
   });
-});
 
 // set security HTTP headers
 app.use(helmet());

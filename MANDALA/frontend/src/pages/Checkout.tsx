@@ -54,8 +54,13 @@ const Checkout = () => {
         let data: CartItem[] = [];
 
         if (user) {
-          // For logged-in users, fetch from database
-          const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/api/users/${user.id}/cart`);
+          // First get the user's MongoDB ID
+          const userResponse = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/api/users/clerk/${user.id}`);
+          if (!userResponse.ok) throw new Error('Failed to fetch user data');
+          const userData = await userResponse.json();
+          
+          // Then fetch the cart using MongoDB ID
+          const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/api/users/${userData._id}/cart`);
           if (!response.ok) throw new Error('Failed to fetch cart');
           data = await response.json();
         } else {
@@ -89,68 +94,67 @@ const Checkout = () => {
           if (!acc[productId]) {
             acc[productId] = {
               productId: item.productId,
-          totalQuantity: item.quantity,
-          variants: [{ color: item.color, quantity: item.quantity }]
-        };
-      } else {
+              totalQuantity: item.quantity,
+              variants: [{ color: item.color, quantity: item.quantity }]
+            };
+          } else {
             acc[productId].totalQuantity += item.quantity;
             const existingVariant = acc[productId].variants.find(v => v.color === item.color);
-        if (existingVariant) {
-          existingVariant.quantity += item.quantity;
-        } else {
+            if (existingVariant) {
+              existingVariant.quantity += item.quantity;
+            } else {
               acc[productId].variants.push({ color: item.color, quantity: item.quantity });
-        }
-      }
-      return acc;
-    }, {});
+            }
+          }
+          return acc;
+        }, {});
 
-    setGroupedItems(Object.values(grouped));
+        setGroupedItems(Object.values(grouped));
     
-    // Calculate total
+        // Calculate total
         const cartTotal = data.reduce((sum: number, item: CartItem) => 
           sum + (item.productId.price * item.quantity), 0);
-    setTotal(cartTotal);
+        setTotal(cartTotal);
 
-    // Create checkout session if there are items in the cart
+        // Create checkout session if there are items in the cart
         if (data.length > 0) {
           const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
       
           fetch(`${apiUrl}/api/payment/create-checkout-session`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
               items: data.map((item: CartItem) => ({
                 product_id: item.productId._id,
                 name: item.productId.name,
                 amount: Math.round(item.productId.price * 100),
-            quantity: item.quantity,
+                quantity: item.quantity,
                 color: item.color,
                 image: item.productId.image
-          })),
-          customerEmail: user?.primaryEmailAddress?.emailAddress
-        }),
-      })
-        .then((res) => {
-          if (!res.ok) {
-            throw new Error(`Server responded with status: ${res.status}`);
-          }
-          return res.json();
-        })
-        .then((data) => {
-              console.log('Checkout session response:', data);
-          if (!data.clientSecret) {
-            throw new Error('No client secret received from server');
-          }
-          setClientSecret(data.clientSecret);
-              setPaymentStatus('ready');
-        })
-        .catch(err => {
-          console.error('Error creating checkout session:', err);
-          setPaymentStatus('error');
-        });
-    } else {
-      setPaymentStatus('empty');
-    }
+              })),
+              customerEmail: user?.primaryEmailAddress?.emailAddress
+            }),
+          })
+          .then((res) => {
+            if (!res.ok) {
+              throw new Error(`Server responded with status: ${res.status}`);
+            }
+            return res.json();
+          })
+          .then((data) => {
+            if (!data.clientSecret) {
+              throw new Error('No client secret received from server');
+            }
+            setClientSecret(data.clientSecret);
+            setPaymentStatus('ready');
+          })
+          .catch(err => {
+            console.error('Error creating checkout session:', err);
+            setPaymentStatus('error');
+          });
+        } else {
+          setPaymentStatus('empty');
+        }
       } catch (error) {
         console.error('Error fetching cart:', error);
         setPaymentStatus('error');

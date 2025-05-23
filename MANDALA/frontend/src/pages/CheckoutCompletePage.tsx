@@ -21,7 +21,13 @@ const CheckoutCompletePage = () => {
     const fetchCart = async () => {
       if (user) {
         try {
-          const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/api/users/${user.id}/cart`);
+          // First get the user's MongoDB ID
+          const userResponse = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/api/users/clerk/${user.id}`);
+          if (!userResponse.ok) throw new Error('Failed to fetch user data');
+          const userData = await userResponse.json();
+          
+          // Then fetch the cart using MongoDB ID
+          const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/api/users/${userData._id}/cart`);
           if (!response.ok) throw new Error('Failed to fetch cart');
           const data = await response.json();
           setCartItems(data);
@@ -42,25 +48,20 @@ const CheckoutCompletePage = () => {
     const clearCart = async () => {
       try {
         if (user) {
-          // For logged-in users, remove each item from database
-          for (const item of cartItems) {
-            if (!item.productId) continue;
-            
-            const productId = typeof item.productId === 'string' ? item.productId : item.productId._id;
-            
-            const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/api/users/${user.id}/cart`, {
-              method: 'DELETE',
-              headers: {
-                'Content-Type': 'application/json',
-              },
-              body: JSON.stringify({
-                productId,
-                color: item.color,
-              }),
-            });
+          // First get the user's MongoDB ID
+          const userResponse = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/api/users/clerk/${user.id}`);
+          if (!userResponse.ok) throw new Error('Failed to fetch user data');
+          const userData = await userResponse.json();
 
-            if (!response.ok) throw new Error('Failed to clear cart');
-          }
+          // Clear the cart using MongoDB ID
+          const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/api/users/${userData._id}/cart/clear`, {
+            method: 'DELETE',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+          });
+
+          if (!response.ok) throw new Error('Failed to clear cart');
         } else {
           // For guest users, clear localStorage
           guestStorage.clearGuestCart();

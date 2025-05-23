@@ -1,5 +1,6 @@
 const User = require('../models/users');
 const Product = require('../models/products');
+const mongoose = require('mongoose');
 
 // Get all users (admin only)
 exports.getAllUsers = async (req, res) => {
@@ -19,7 +20,7 @@ exports.getAllUsers = async (req, res) => {
 // Get or create user
 exports.getOrCreateUser = async (req, res) => {
   try {
-    const { clerkId, email, role } = req.body;
+    const { clerkId, email } = req.body;
 
     if (!clerkId || !email) {
       return res.status(400).json({ message: 'clerkId and email are required' });
@@ -28,26 +29,18 @@ exports.getOrCreateUser = async (req, res) => {
     let user = await User.findOne({ clerkId });
 
     if (!user) {
-      // For new users, set the default role
-      user = new User({
-        clerkId,
+      user = await User.create({ 
+        clerkId, 
         email,
-        role: role || 'customer',
+        role: 'customer',
         cart: [],
         wishlist: []
       });
+    } else if (user.email !== email) {
+      user.email = email;
       await user.save();
-      console.log('New user created:', user._id);
-    } else {
-      // For existing users, only update email if it has changed
-      if (user.email !== email) {
-        user.email = email;
-        await user.save();
-        console.log('User email updated:', user._id);
-      }
-      console.log('Existing user found:', user._id);
     }
-
+    
     res.json(user);
   } catch (error) {
     console.error('Error in getOrCreateUser:', error);
@@ -204,6 +197,15 @@ exports.addToWishlist = async (req, res) => {
       return res.status(400).json({ message: 'Product ID is required' });
     }
 
+    // Validate MongoDB ObjectId
+    if (!mongoose.Types.ObjectId.isValid(userId)) {
+      return res.status(400).json({ message: 'Invalid user ID format' });
+    }
+
+    if (!mongoose.Types.ObjectId.isValid(productId)) {
+      return res.status(400).json({ message: 'Invalid product ID format' });
+    }
+
     const user = await User.findById(userId);
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
@@ -239,6 +241,15 @@ exports.removeFromWishlist = async (req, res) => {
 
     if (!productId) {
       return res.status(400).json({ message: 'Product ID is required' });
+    }
+
+    // Validate MongoDB ObjectId
+    if (!mongoose.Types.ObjectId.isValid(userId)) {
+      return res.status(400).json({ message: 'Invalid user ID format' });
+    }
+
+    if (!mongoose.Types.ObjectId.isValid(productId)) {
+      return res.status(400).json({ message: 'Invalid product ID format' });
     }
 
     const user = await User.findById(userId);
@@ -334,40 +345,34 @@ exports.getUserByClerkId = async (req, res) => {
 // Clear user's cart
 exports.clearCart = async (req, res) => {
   try {
-    const { userId } = req.params;
-    const user = await User.findById(userId);
-    
+    const user = await User.findById(req.params.userId);
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
     }
-    
+
     user.cart = [];
     await user.save();
-    
     res.json({ message: 'Cart cleared successfully' });
   } catch (error) {
     console.error('Error clearing cart:', error);
-    res.status(500).json({ message: error.message });
+    res.status(500).json({ message: 'Error clearing cart' });
   }
 };
 
 // Clear user's wishlist
 exports.clearWishlist = async (req, res) => {
   try {
-    const { userId } = req.params;
-    const user = await User.findById(userId);
-    
+    const user = await User.findById(req.params.userId);
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
     }
-    
+
     user.wishlist = [];
     await user.save();
-    
     res.json({ message: 'Wishlist cleared successfully' });
   } catch (error) {
     console.error('Error clearing wishlist:', error);
-    res.status(500).json({ message: error.message });
+    res.status(500).json({ message: 'Error clearing wishlist' });
   }
 };
 

@@ -49,12 +49,8 @@ const StripeCheckoutForm = () => {
       } else if (result.type === 'success') {
         console.log('Payment successful:', result.success);
         // Only redirect on successful payment
-        navigate('/checkout_complete', { 
-          state: { 
-            status: 'success',
-            paymentIntentId: result.success.id
-          },
-          replace: true
+        navigate('/checkout-complete', { 
+          state: { paymentIntentId: result.success.id }
         });
       }
     } catch (err) {
