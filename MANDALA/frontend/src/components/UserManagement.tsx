@@ -66,12 +66,23 @@ const UserManagement = () => {
 
   const fetchUsers = async () => {
     try {
+      if (!user) {
+        setError('User not authenticated');
+        return;
+      }
+
       const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/api/users`, {
         headers: {
-          'x-clerk-id': user?.id || ''
+          'Content-Type': 'application/json',
+          'x-clerk-id': user.id
         }
       });
-      if (!response.ok) throw new Error('Failed to fetch users');
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to fetch users');
+      }
+      
       const data = await response.json();
       setUsers(data);
     } catch (error) {
@@ -87,7 +98,7 @@ const UserManagement = () => {
       const response = await fetch(
         `${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/api/users/${userId}/role`,
         {
-          method: 'PUT',
+          method: 'PATCH',
           headers: {
             'Content-Type': 'application/json',
             'x-clerk-id': user?.id || ''
