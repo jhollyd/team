@@ -1,68 +1,74 @@
-import { useState } from 'react';
-import art1 from '../images/art1.jpeg';
-import art2 from '../images/art2.jpeg';
-import art3 from '../images/art3.jpeg';
-import art4 from '../images/art4.jpeg';
-import art6 from '../images/art6.jpeg';
+import { useState, useEffect } from 'react';
 import ProductCard from './ProductCard';
 
+interface Tag {
+  _id: string;
+  name: string;
+}
 
-// Dummy product list
-const products = [
- 
-  {
-    id: 1,
-    name: 'Sparkle On Your Own',
-    price: 20.0,
-    image: art1,
-    category: 'Hand Drawn',
-  },
-  {
-    id: 2,
-    name: 'Peacock Flute Mandala',
-    price: 25.0,
-    image: art2,
-    category: 'Hand Drawn',
-  },
-  {
-    id: 3,
-    name: 'Bubu & Dudu Hug Mandala',
-    price: 18.0,
-    image: art3,
-    category: 'Hand Drawn',
-  },
-  {
-    id: 4,
-    name: 'Flower Crown Portrait',
-    price: 28.0,
-    image: art4,
-    category: 'Digital',
-  },
-  {
-    id: 5,
-    name: 'Custom Name Design',
-    price: 30.0,
-    image: 'https://img.freepik.com/free-vector/creative-namaste-background_23-2147692899.jpg?t=st=1744495406~exp=1744499006~hmac=1e5a8bde13e01e165a4e93f55f1f1044b97c179956ec74ee8bd5cc66d398f750&w=900',
-    category: 'Custom',
-  },
-  {
-    id: 6,
-    name: 'Mandala Hearts',
-    price: 22.0,
-    image: art6,
-    category: 'Hand Drawn',
-  },
-];
-
-const categories = ['All', 'Hand Drawn', 'Digital', 'Custom'];
+interface Product {
+  _id: string;
+  name: string;
+  price: number;
+  image: string;
+  tags: string[];
+  isActive: boolean;
+}
 
 const Gallery = () => {
+  const [selectedTag, setSelectedTag] = useState('All');
+  const [products, setProducts] = useState<Product[]>([]);
+  const [tags, setTags] = useState<Tag[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const [selectedCategory, setSelectedCategory] = useState('All');
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        // Fetch products
+        const productsResponse = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/api/products`);
+        if (!productsResponse.ok) {
+          throw new Error('Failed to fetch products');
+        }
+        const productsData = await productsResponse.json();
+        setProducts(productsData);
 
-  const filtered = selectedCategory === 'All'
-    ? products
-    : products.filter(p => p.category === selectedCategory);
+        // Fetch tags
+        const tagsResponse = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/api/tags`);
+        if (!tagsResponse.ok) {
+          throw new Error('Failed to fetch tags');
+        }
+        const tagsData = await tagsResponse.json();
+        setTags(tagsData);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'An error occurred');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, []);
+
+  const filtered = selectedTag === 'All'
+    ? products.filter(p => p.isActive)
+    : products.filter(p => p.isActive && p.tags.includes(selectedTag));
+
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center min-h-screen">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-200"></div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="text-center text-red-600 py-20">
+        Error: {error}
+      </div>
+    );
+  }
 
   return (
     <div className="py-20 bg-white min-h-screen">
@@ -75,13 +81,14 @@ const Gallery = () => {
         {/* Filter Dropdown */}
         <div className="flex justify-end mb-8">
           <select
-            value={selectedCategory}
-            onChange={(e) => setSelectedCategory(e.target.value)}
+            value={selectedTag}
+            onChange={(e) => setSelectedTag(e.target.value)}
             className="border border-gray-300 rounded px-4 py-2"
           >
-            {categories.map((c) => (
-              <option key={c} value={c}>
-                {c}
+            <option value="All">All Tags</option>
+            {tags.map((tag) => (
+              <option key={tag._id} value={tag.name}>
+                {tag.name}
               </option>
             ))}
           </select>
@@ -90,7 +97,7 @@ const Gallery = () => {
         {/* Product Grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-8">
           {filtered.map((product) => (
-            <ProductCard product={product} />
+            <ProductCard key={product._id} product={product} />
           ))}
         </div>
       </div>

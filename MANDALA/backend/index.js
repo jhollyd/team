@@ -1,5 +1,5 @@
 const express = require('express');
-
+const mongoose = require('mongoose');
 const app = express();
 const helmet = require('helmet');
 const xss = require('xss-clean');
@@ -7,6 +7,16 @@ const mongoSanitize = require('express-mongo-sanitize');
 const compression = require('compression');
 const cors = require('cors');
 require('dotenv').config();
+
+// Connect to MongoDB
+mongoose.connect(process.env.MONGODB_URL)
+  .then(() => {
+    console.log('Connected to MongoDB');
+  })
+  .catch(err => {
+    console.error('MongoDB connection error:', err);
+    process.exit(1);
+  });
 
 // set security HTTP headers
 app.use(helmet());
@@ -29,11 +39,16 @@ app.use(cors());
 app.options('*', cors());
 
 // Routers
-app.use('/user', require('./routes/users'));
+app.use('/api/products', require('./routes/products'));
+app.use('/api/users', require('./routes/users'));
+app.use('/api/tags', require('./routes/tags'));
+app.use('/api/payment', require('./routes/payment'));
+app.use('/api/email', require('./routes/email'));
 
-const server = app.use(express.json());
-
-server.listen(3000, () => {});
+const PORT = process.env.PORT || 3000;
+const server = app.listen(PORT, () => {
+  console.log(`Server is running on port ${PORT}`);
+});
 
 const exitHandler = () => {
   if (server) {

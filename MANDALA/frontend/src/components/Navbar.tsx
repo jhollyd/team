@@ -8,6 +8,7 @@ const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
   const [isProfileClicked, setIsProfileClicked] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
   const dropdownRef = useRef<HTMLDivElement | null>(null);
   const { isSignedIn, user } = useUser();
   const { signOut } = useClerk();
@@ -18,7 +19,31 @@ const Navbar = () => {
   const isNonHomePage = location.pathname.startsWith('/gallery') || 
     location.pathname.startsWith('/product') || 
     location.pathname.startsWith('/account') || 
-    location.pathname.startsWith('/checkout');
+    location.pathname.startsWith('/checkout') ||
+    location.pathname.startsWith('/admin');
+
+  // Check admin status
+  useEffect(() => {
+    const checkAdminStatus = async () => {
+      if (user) {
+        try {
+          const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/api/users/clerk/${user.id}`);
+          if (!response.ok) {
+            throw new Error('Failed to fetch user data');
+          }
+          const data = await response.json();
+          setIsAdmin(data.role === 'admin');
+        } catch (error) {
+          console.error('Error checking admin status:', error);
+          setIsAdmin(false);
+        }
+      } else {
+        setIsAdmin(false);
+      }
+    };
+
+    checkAdminStatus();
+  }, [user]);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -90,6 +115,16 @@ const Navbar = () => {
               >
                 Shop
               </a>
+              {isAdmin && (
+                <Link
+                  to="/admin"
+                  className={`font-bold hover:text-blue-200 transition-colors ${
+                    isScrolled ? 'text-black' : 'text-white'
+                  }`}
+                >
+                  Admin Dashboard
+                </Link>
+              )}
 
               <div className="relative" ref={dropdownRef}>
                 {isSignedIn ? (

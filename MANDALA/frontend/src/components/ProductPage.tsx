@@ -1,64 +1,70 @@
 import { useState } from 'react';
+import { useUser } from '@clerk/clerk-react';
+import { guestStorage } from '../utils/guestStorage';
 
-interface product {
-  id: number;
+interface Product {
+  _id: string;
   name: string;
   price: number;
   image: string;
-  category: string;
+  tags: string[];
+  isActive: boolean;
 }
 
 interface ProductPageProps {
-  product: product;
-}
-
-interface CartItem {
-  id: number;
-  name: string;
-  price: number;
-  color: string;
-  quantity: number;
+  product: Product;
 }
 
 const ProductPage = ({ product }: ProductPageProps) => {
   const [selectedColor, setSelectedColor] = useState('Black');
   const [showSuccess, setShowSuccess] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const { user } = useUser();
 
   const handleColorChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     setSelectedColor(e.target.value);
   };
 
-  const handleAddToCart = () => {
-    // Get existing cart
-    const existingCart: CartItem[] = JSON.parse(localStorage.getItem('cart') || '[]');
-    
-    // Check if item with same ID and color already exists
-    const existingItemIndex = existingCart.findIndex(
-      item => item.id === product.id && item.color === selectedColor
-    );
+  const handleAddToCart = async () => {
+    setLoading(true);
+    try {
+      if (user) {
+        // Get user's MongoDB ID
+        const userResponse = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/api/users/clerk/${user.id}`);
+        if (!userResponse.ok) throw new Error('Failed to fetch user data');
+        const userData = await userResponse.json();
 
-    if (existingItemIndex !== -1) {
-      // If item exists, increase quantity
-      existingCart[existingItemIndex].quantity += 1;
-    } else {
-      // If item doesn't exist, add new item
-      existingCart.push({
-        id: product.id,
-        name: product.name,
-        price: product.price,
-        color: selectedColor,
-        quantity: 1
-      });
+        const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/api/users/${userData._id}/cart`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            productId: product._id,
+            quantity: 1,
+            color: selectedColor,
+          }),
+        });
+
+        if (!response.ok) throw new Error('Failed to add item to cart');
+      } else {
+        // For guest users, add to localStorage
+        guestStorage.addToGuestCart({
+          productId: product._id,
+          quantity: 1,
+          color: selectedColor,
+        });
+      }
+      
+      setShowSuccess(true);
+      setTimeout(() => {
+        window.location.reload();
+      }, 200);
+    } catch (error) {
+      console.error('Error adding to cart:', error);
+    } finally {
+      setLoading(false);
     }
-    
-    // Update cart in localStorage
-    localStorage.setItem('cart', JSON.stringify(existingCart));
-    
-    // Show success message and refresh page
-    setShowSuccess(true);
-    setTimeout(() => {
-      window.location.reload();
-    }, 100); // Wait 1 second to show the success message before refreshing
   };
 
   return (
@@ -74,7 +80,17 @@ const ProductPage = ({ product }: ProductPageProps) => {
         <div className="w-full lg:w-1/3 xl:w-1/4">
           <h1 className="text-3xl font-bold mb-2">{product.name}</h1>
           <p className="text-lg font-medium mb-4">${product.price.toFixed(2)}</p>
-          <p className="text-lg font-medium mb-4">Category: {product.category}</p>
+          
+          <div className="flex flex-wrap gap-2 mb-4">
+            {product.tags.map((tag) => (
+              <span
+                key={tag}
+                className="px-3 py-1 text-sm bg-gray-100 text-gray-800 rounded-full"
+              >
+                {tag}
+              </span>
+            ))}
+          </div>
 
           {/* Color customization */}
           <div className="mb-6">
@@ -97,9 +113,10 @@ const ProductPage = ({ product }: ProductPageProps) => {
 
           <button 
             onClick={handleAddToCart}
-            className="bg-gray-900 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded w-full"
+            disabled={loading}
+            className="bg-gray-900 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded w-full disabled:opacity-50"
           >
-            Add to Cart
+            {loading ? 'Adding...' : 'Add to Cart'}
           </button>
 
           {showSuccess && (
