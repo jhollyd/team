@@ -135,7 +135,7 @@ def generate_schedule(request):
         top_schedules = []
         employeeHourLimitViolationWarning = False
 
-        for _ in range(100000):
+        for _ in range(100000): ## 100,000 iterations of scheduling algorithm (each run produces a single schedule)
             sE = ScheduleEngine(employees=employees, max_man_hours=total_master_schedule_hours)
             empIdToSched = sE.schedule()
 
@@ -156,10 +156,12 @@ def generate_schedule(request):
                 ## should future developers change/tamper with the algorithm
                 print("WARN: Employee Hour Limit Violated")
             else:
-                top_schedules.append((unfilled, empIdToSched, sE))
+                top_schedules.append((unfilled, empIdToSched, sE)) ## Each of the 100,000 schedules appended to a list
 
-        top_schedules = sorted(top_schedules, key=lambda x: x[0])[:5]
-        employees_by_id = {emp.employee_id: emp for emp in employees}
+        top_schedules = sorted(top_schedules, key=lambda x: x[0])[:5] ## Sort the list, retrieve top 5 schedules
+
+        ## In progress: Pass to converter to convert the schedules from the format used by algorithm (bit strings) to the format expected by front-end
+        employees_by_id = {emp.employee_id: emp for emp in employees} 
         formatted_result = format_all_schedules(top_schedules, employees_by_id)
         return JsonResponse(formatted_result, safe=False, status=200)
 
