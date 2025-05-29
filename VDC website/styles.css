@@ -203,6 +203,8 @@ footer {
   transition: 0.2s linear;
 }
 
+
+/* About us Section -Ryan Song */
 .about {
   position: relative;
   display: flex;
@@ -384,7 +386,7 @@ footer {
   color: #132245;
 }
 
-
+/* END -Ryan-Song */
 
 
 
